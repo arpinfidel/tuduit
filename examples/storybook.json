@@ -1,0 +1,60 @@
+{
+	"id": "ulid",
+	"image": "ulid",
+	"languages": ["en", "id"],
+	"chapters": [
+		{
+			"name": "Chapter Name",
+			"image": "ulid",
+			"pages": [
+				{
+					"image": "ulid",
+					"text": {
+						"en": "...",
+						"id": "..."
+					}
+				}
+			]
+		}
+	],
+	"prompt_options_per_page": 2,
+	"reuse_images_on_different_pages": true,
+	"image_prompts": {
+		"1": [
+			{
+				"positive": "a cunning fox talking to a wise tortoise in a forest, watercolor",
+				"negative": "bad art, poorly drawn, out of frame, deformed, realistic, 3d"
+			}, {
+				"positive": "fox bragging to a tortoise, watercolor",
+				"negative": "photo, realistic, bad art, deformed, poorly drawn"
+			}
+		],
+		"2": [
+			{
+				"positive": "a fox running fast, streaks of wind, watercolor, fable",
+				"negative": "bad art, poorly drawn, out of frame, deformed, realistic, 3d"
+			}, {
+				"positive": "fox sprinting and jumping, watercolor, storybook",
+				"negative": "bad art, poorly drawn, out of frame, deformed, realistic, 3d"
+			}
+		],
+		"3": [
+			{
+				"positive": "cute fable drawing of a tortoise walking slowly next to a clock, watercolor",
+				"negative": "bad art, poorly drawn, out of frame, deformed, realistic, 3d"
+			}, {
+				"positive": "tortoise walking slowly, watercolor, children's storybook",
+				"negative": "bad art, poorly drawn, out of frame, deformed, realistic, 3d"
+			}
+		],
+		"4": [
+			{
+				"positive": "a fox running next to a tortoise:1.5, sprint track event, cartoon, watercolor",
+				"negative": "bad art, poorly drawn, out of frame, deformed, realistic, 3d, cropped, ugly"
+			}, {
+				"positive": "fox and tortoise racing, watercolor, fable",
+				"negative": "bad art, poorly drawn, out of frame, deformed, realistic, 3d"
+			}
+		]
+	}
+}

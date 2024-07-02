@@ -1,0 +1,47 @@
+{
+    "prompts_per_page": 2,
+    "reuse_images_on_different_pages": true,
+	"full_text": "Once upon a time, in a dense forest, there lived a cunning fox and a wise tortoise. The fox would often boast about his speed and agility,",
+	"languages": ["en", "id"]
+}
+
+{
+    "pages": [
+        {
+            "image": "1",
+            "text": {
+                "en": "Once upon a time, in a dense forest, there lived a cunning fox and a wise tortoise.",
+                "id": "Pada suatu waktu, di sebuah hutan yang lebat, hiduplah seekor rubah licik dan seekor kura-kura bijak."
+            }
+        },
+        {
+            "image": "2",
+            "text": {
+                "en": "The fox would often boast about his speed and agility,",
+                "id": "Rubah itu sering membual tentang kecepatan dan kelincahannya,"
+            }
+        }
+    ],
+    "image_prompts": {
+        "1": [
+            {
+                "+": "a cunning fox talking to a wise tortoise in a forest, watercolor",
+                "-": "bad art, poorly drawn, out of frame, deformed, realistic, 3d"
+            },
+            {
+                "+": "fox bragging to a tortoise, watercolor",
+                "-": "photo, realistic, bad art, deformed, poorly drawn"
+            }
+        ],
+        "2": [
+            {
+                "+": "a fox running fast, streaks of wind, watercolor, fable",
+                "-": "bad art, poorly drawn, out of frame, deformed, realistic, 3d"
+            },
+            {
+                "+": "fox sprinting and jumping, watercolor, storybook",
+                "-": "bad art, poorly drawn, out of frame, deformed, realistic, 3d"
+            }
+        ]
+    }
+}

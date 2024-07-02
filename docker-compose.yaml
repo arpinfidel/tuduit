@@ -1,0 +1,114 @@
+version: '3.9'
+services:
+  golang:
+    restart: always
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: ./.dev/Dockerfile
+    command: [ "air", "-c", ".dev/air.toml" ]
+    container_name: tuduit_golang
+    healthcheck:
+      test: curl --fail -s http://localhost:8989/ping || exit 1
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+    ports:
+      - "2000:2000" # http port
+      - "2001:2001" # http debug
+      
+      - "2002:2002" # cron port
+      - "2003:2003" # cron debug
+      
+      - "2004:2004" # grpc port
+      - "2005:2005" # grpc debug
+
+      - "2007:2007" # mq   debug
+    volumes:
+      - .:/go/src/github.com/arpinfidel/tuduit
+      - ~/.ssh:/root/.ssh
+      - ./secret.json:/secret.json
+      - ./files/var/log:/var/log
+      - gomod:/go/pkg/mod
+      - gocache:/root/.cache/go-build
+      - ./files/var/lib/sqlite3:/var/lib/sqlite3
+    # depends_on:
+      # - pg
+      # - redis
+      # - nsqadmin
+      # - nsqd
+    environment:
+      - ENV=${ENV}
+      - DBM_DEV_MASTER_DB=postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable&TimeZone=Asia/Jakarta
+      - DBM_SQL_PATH=.dev/db_migration/
+  # nginx:
+  #   restart: always
+  #   build: .dev/nginx
+  #   container_name: "tuduit_nginx"
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #     - "3001:3001"
+  #   volumes:
+  #     - .dev/nginx/conf.d/${ENV:-development}.conf:/etc/nginx/conf.d/default.conf
+  #     - .dev/nginx/data:/etc/nginx/data/
+  #     - .dev/skipper-cert:/etc/nginx/ssl/
+  #   depends_on:
+  #     - golang
+  # redis:
+  #   restart: always
+  #   image: redis
+  #   container_name: tuduit_redis
+  # pg:
+  #   restart: always
+  #   image: "postgres:12"
+  #   container_name: "tuduit_pg"
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_DB: tuduit
+  #     POSTGRES_HOST_AUTH_METHOD: trust
+  #   volumes:
+  #     - postgres-init:/docker-entrypoint-initdb.d/init.sql
+  #     - postgres-data:/var/lib/postgresql/data
+  # nsqlookupd:
+  #   restart: always
+  #   image: nsqio/nsq
+  #   command: /nsqlookupd
+  #   container_name: tuduit_nsqlookupd
+  # nsqd:
+  #   restart: always
+  #   image: nsqio/nsq
+  #   container_name: tuduit_nsqd
+  #   command: /nsqd --broadcast-address=tuduit_nsqd --lookupd-tcp-address=tuduit_nsqlookupd:4160
+  #   depends_on:
+  #     - nsqlookupd
+  # nsqadmin:
+  #   restart: always
+  #   image: nsqio/nsq
+  #   container_name: tuduit_nsqadmin
+  #   command: /nsqadmin --lookupd-http-address=tuduit_nsqlookupd:4161
+  #   depends_on:
+  #     - nsqlookupd
+  # minio:
+  #   image: minio/minio
+  #   container_name: tuduit-minio
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   volumes:
+  #     - minio_storage:/data
+  #   environment:
+  #     MINIO_ROOT_USER: tuduit_admin
+  #     MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+  #   command: server --console-address ":9001" /data
+volumes:
+  gomod:
+  gocache:
+  # postgres-init:
+  postgres-data:
+  minio_storage:
+networks:
+  default:
+    external:
+      name: tuduit-network
