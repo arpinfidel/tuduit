@@ -1,8 +1,8 @@
-package todo
+package cli
 
 import (
 	"github.com/arpinfidel/tuduit/app"
-	"github.com/arpinfidel/tuduit/app/apps/todo/handler"
+	"github.com/arpinfidel/tuduit/gateway/cli/handler"
 	"github.com/urfave/cli/v2"
 )
 

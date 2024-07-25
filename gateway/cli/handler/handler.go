@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/arpinfidel/tuduit/app"
-	"github.com/arpinfidel/tuduit/app/apps/todo/business"
 	taskuc "github.com/arpinfidel/tuduit/usecase/task"
 	useruc "github.com/arpinfidel/tuduit/usecase/user"
 	"github.com/urfave/cli/v2"
@@ -18,7 +17,7 @@ type Handler struct {
 }
 
 type Dependencies struct {
-	Business *business.Business
+	App *app.App
 
 	TaskUC *taskuc.UseCase
 	UserUC *useruc.UseCase
@@ -87,7 +86,11 @@ func (h *Handler) List() (flags []cli.Flag, actionFunc ActionFunc) {
 			return err
 		}
 
-		tasks, cnt, err := h.d.Business.List(ctx, flags.Username, args.Page, flags.Size)
+		tasks, cnt, err := h.d.App.TaskList(ctx, app.TaskListParams{
+			UserName: flags.Username,
+			Page:     args.Page,
+			Size:     flags.Size,
+		})
 		if err != nil {
 			return err
 		}

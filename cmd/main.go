@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/arpinfidel/tuduit/app/http"
+	"github.com/arpinfidel/tuduit/gateway/http"
 	"github.com/arpinfidel/tuduit/pkg/db"
 	"github.com/jmoiron/sqlx"
 	"github.com/urfave/cli/v2"
