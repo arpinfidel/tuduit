@@ -1,1 +1,1 @@
-http 4000 .dev/tmp/http -l /var/log/tuduit/http.info.log -e /var/log/tuduit/http.error.log
+tuduit 4000 .dev/tuduit

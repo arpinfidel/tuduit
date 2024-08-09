@@ -16,7 +16,8 @@ type Dependencies struct {
 
 func New(deps Dependencies) *UseCase {
 	return &UseCase{
-		deps: deps,
+		IRepo: deps.Repo,
+		deps:  deps,
 	}
 }
 

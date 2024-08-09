@@ -6,15 +6,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/arpinfidel/tuduit/app"
+	"github.com/arpinfidel/tuduit/pkg/ctxx"
 	"github.com/urfave/cli/v2"
 )
 
-func (h *Handler) getArgs(ctx *app.Context, c *cli.Context, v any) (res any, err error) {
+func (h *Handler) getArgs(ctx *ctxx.Context, c *cli.Context, v any) (res any, err error) {
 	return h.validateArgsRaw(ctx, c.Args().Slice(), v)
 }
 
-func (h *Handler) validateArgsRaw(ctx *app.Context, runArgs []string, v any) (res any, err error) {
+func (h *Handler) validateArgsRaw(ctx *ctxx.Context, runArgs []string, v any) (res any, err error) {
 	type arg struct {
 		Name     string
 		Required bool
@@ -205,7 +205,7 @@ func (h *Handler) makeFlags(v any) (res []cli.Flag, err error) {
 	return flags, nil
 }
 
-func (h *Handler) getFlags(ctx *app.Context, c *cli.Context, v any) (err error) {
+func (h *Handler) getFlags(ctx *ctxx.Context, c *cli.Context, v any) (err error) {
 	for i := 0; i < reflect.TypeOf(v).Elem().NumField(); i++ {
 		field := reflect.TypeOf(v).Elem().Field(i)
 		tag := field.Tag.Get("flag")

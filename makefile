@@ -1,4 +1,4 @@
-create-network:
+network:
 	@docker network create tuduit-network
 
 dev:
@@ -14,20 +14,11 @@ up:
 rebuild:
 	@docker-compose up --build -d
 
-log-go:
-	@docker logs --follow tuduit_golang --tail 1000
+log-go-v log-v logv:
+	@docker logs --follow tuduit_golang --tail 1000 2>&1
 
-log-http:
-	@docker logs --follow tuduit_golang --tail 1000 | awk '!/^\[.*\]/ || /^\[http\]/' | awk '{sub(/\[http\]\t/,""); print}'
-
-log-mq:
-	@docker logs --follow tuduit_golang --tail 1000 | awk '!/^\[.*\]/ || /^\[mq\]/' | awk '{sub(/\[mq\]\t/,""); print}'
-	
-log-cron:
-	@docker logs --follow tuduit_golang --tail 1000 | awk '!/^\[.*\]/ || /^\[cron\]/' | awk '{sub(/\[cron\]\t/,""); print}'
-
-log-grpc:
-	@docker logs --follow tuduit_golang --tail 1000 | awk '!/^\[.*\]/ || /^\[grpc\]/' | awk '{sub(/\[grpc\]\t/,""); print}'
+log-go log:
+	@docker logs --follow tuduit_golang --tail 1000 2>&1 | grep "\[tuduit\]" | sed 's/\[tuduit\]\t//g'
 
 log-redis:
 	@docker logs --follow tuduit_redis --tail 50
@@ -48,7 +39,7 @@ doc:
 	@docker exec -t tuduit_golang autodoc
 	@git add ./autodoc/openapi.yaml
 
-new-migration:
+new-migration migration:
 	@read -p "enter migration name: " mig; \
 	echo "migration name: $${mig}"; \
 	docker exec -t tuduit_golang migrate create -ext sql -dir db/migrations -seq $${mig}
@@ -59,4 +50,5 @@ migrate-down:
 	docker exec -t tuduit_golang migrate -source file://./db/migrations -database "sqlite3:///var/lib/sqlite3/tuduit.db" down
 
 migrate-drop:
-	docker exec -t tuduit_golang migrate -path ./db/migrations -database "sqlite3:///var/lib/sqlite3/tuduit.db" drop -f
+	rm ./files//var/lib/sqlite3/tuduit.db
+	# docker exec -t tuduit_golang migrate -path ./db/migrations -database "sqlite3:///var/lib/sqlite3/tuduit.db" drop -f

@@ -3,12 +3,13 @@ package entity
 import "time"
 
 type StdFields struct {
-	ID        int64      `json:"id"         db:"id"`
-	CreatedAt *time.Time `json:"created_at" db:"created_at"`
-	CreatedBy string     `json:"created_by" db:"created_by"`
-	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
-	UpdatedBy string     `json:"updated_by" db:"updated_by"`
-	DeletedAt *time.Time `json:"deleted_at" db:"deleted_at"`
+	ID        int        `db:"id"         json:"id"`
+	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	CreatedBy int        `db:"created_by" json:"created_by"`
+	UpdatedAt time.Time  `db:"updated_at" json:"updated_at"`
+	UpdatedBy int        `db:"updated_by" json:"updated_by"`
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
+	DeletedBy *int       `db:"deleted_by" json:"deleted_by"`
 }
 
 func (std StdFields) GetStdFields() StdFields {

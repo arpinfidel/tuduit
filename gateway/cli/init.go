@@ -1,13 +1,13 @@
 package cli
 
 import (
-	"github.com/arpinfidel/tuduit/app"
 	"github.com/arpinfidel/tuduit/gateway/cli/handler"
+	"github.com/arpinfidel/tuduit/pkg/ctxx"
 	"github.com/urfave/cli/v2"
 )
 
 type App struct {
-	ctx *app.Context
+	ctx *ctxx.Context
 
 	app cli.App
 
@@ -22,7 +22,7 @@ type Config struct {
 	handler.Config
 }
 
-func New(ctx *app.Context, deps Dependencies, cfg Config) *App {
+func New(ctx *ctxx.Context, deps Dependencies, cfg Config) *App {
 	cliApp := &cli.App{
 		Name:  "todo",
 		Usage: "Todo CLI",
@@ -41,7 +41,7 @@ func New(ctx *app.Context, deps Dependencies, cfg Config) *App {
 	return app
 }
 
-func command(ctx *app.Context, com *cli.Command, f func() (flags []cli.Flag, actionFunc handler.ActionFunc)) *cli.Command {
+func command(ctx *ctxx.Context, com *cli.Command, f func() (flags []cli.Flag, actionFunc handler.ActionFunc)) *cli.Command {
 	flags, actionFunc := f()
 	com.Flags = flags
 	com.Action = func(c *cli.Context) error {

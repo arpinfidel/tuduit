@@ -1,13 +1,17 @@
 -- sqlite3
 
 create table if not exists schedule (
-	id bigserial primary key
+	id integer primary key autoincrement not null
 	, created_at timestamp not null default current_timestamp
+	, created_by integer not null
 	, updated_at timestamp not null default current_timestamp
+	, updated_by integer not null
+	, deleted_at timestamp
+	, deleted_by integer
 	
-	, user_id bigint
+	, user_id integer
 	
 	, start_date timestamp
 	, schedule text -- cron expression
-	, duration bigint -- duration before deadline in seconds
+	, duration integer -- duration before deadline in seconds
 );

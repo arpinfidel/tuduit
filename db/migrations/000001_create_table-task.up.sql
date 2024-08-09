@@ -1,20 +1,21 @@
 -- sqlite3
 
 create table task (
-	id bigserial primary key
+	id integer primary key autoincrement not null
 	, created_at timestamp not null default current_timestamp
+	, created_by integer not null
 	, updated_at timestamp not null default current_timestamp
+	, updated_by integer not null
+	, deleted_at timestamp
+	, deleted_by integer
 
-	, user_id bigint
-	, task_schedule_id bigint
+	, user_id integer
+	, task_schedule_id integer
 
 	, name text not null
 	, description text
 	, status text not null default 'pending'
-	, started boolean not null default false
 	, started_at timestamp
-	, completed boolean not null default false
 	, completed_at timestamp
-	, archived boolean not null default false
 	, archived_at timestamp
 );

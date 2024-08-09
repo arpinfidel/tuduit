@@ -31,14 +31,14 @@ func (h Handler) getTasks(
 func (h Handler) getTaskByID(
 	ctx context.Context,
 	path struct {
-		ID string `json:"id"`
+		ID int `json:"id"`
 	},
 	query struct{},
 	req struct{},
 ) (book entity.Task, err error) {
 	defer trace.Default(&ctx, &err)
 
-	books, _, err := h.deps.TaskRepo.GetByIDs(ctx, nil, []string{path.ID}, entity.Pagination{Page: 1, PageSize: 1})
+	books, _, err := h.deps.TaskRepo.GetByIDs(ctx, nil, []int{path.ID}, entity.Pagination{Page: 1, PageSize: 1})
 	if len(books) == 0 {
 		return entity.Task{}, errs.NewError("task not found")
 	}

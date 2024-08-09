@@ -1,4 +1,4 @@
-package user
+package userrepo
 
 import (
 	"github.com/arpinfidel/tuduit/entity"
@@ -21,6 +21,6 @@ func New(deps Dependencies) *Repo {
 	return &Repo{
 		deps:         deps,
 		DBConnection: *repo.NewDBConnection(deps.DB),
-		StdCRUD:      repo.NewStdCRUD[entity.User](deps.DB, "task"),
+		StdCRUD:      repo.NewStdCRUD[entity.User](deps.DB, "user"),
 	}
 }

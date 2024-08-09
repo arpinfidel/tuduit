@@ -20,9 +20,10 @@ type Params struct {
 }
 
 type Where struct {
-	Field string
-	Op    Operator
-	Value any
+	Field  string
+	Op     Operator
+	Value  any
+	RawSQL string
 }
 
 type Operator int
@@ -37,11 +38,17 @@ const (
 	GtOrEqOp
 	LtOrEqOp
 	InOp
+	LikeOp
+	OrOp
+	AndOp
+	RawOp
 )
 
 func (w *Where) buildOperator() sq.Sqlizer {
 	v := w.Value
 	switch w.Op {
+	default:
+		return sq.Eq{w.Field: v}
 	case NotNullOp:
 		return sq.NotEq{w.Field: nil}
 	case IsNullOp:
@@ -60,9 +67,39 @@ func (w *Where) buildOperator() sq.Sqlizer {
 		return sq.LtOrEq{w.Field: v}
 	case InOp:
 		return sq.Eq{w.Field: v}
-	default:
-		return sq.Eq{w.Field: v}
+	case LikeOp:
+		return sq.Like{w.Field: v}
+	case OrOp:
+		return or(v)
+	case AndOp:
+		return and(v)
+	case RawOp:
+		return sq.Expr(w.RawSQL)
 	}
+}
+
+func or(v interface{}) sq.Or {
+	orFilters := sq.Or{}
+	switch filters := v.(type) {
+	case []Where:
+		for _, f := range filters {
+			orFilters = append(orFilters, f.buildOperator())
+		}
+	}
+
+	return orFilters
+}
+
+func and(v interface{}) sq.And {
+	orFilters := sq.And{}
+	switch filters := v.(type) {
+	case []Where:
+		for _, f := range filters {
+			orFilters = append(orFilters, f.buildOperator())
+		}
+	}
+
+	return orFilters
 }
 
 func (p *Params) BuildWhere() *Params {

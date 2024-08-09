@@ -4,67 +4,79 @@ import (
 	"context"
 
 	"github.com/arpinfidel/tuduit/entity"
+	"github.com/arpinfidel/tuduit/pkg/cron"
 	"github.com/arpinfidel/tuduit/pkg/db"
+	"github.com/arpinfidel/tuduit/pkg/log"
+	checkinuc "github.com/arpinfidel/tuduit/usecase/checkin"
 	taskuc "github.com/arpinfidel/tuduit/usecase/task"
 	useruc "github.com/arpinfidel/tuduit/usecase/user"
+	"github.com/jmoiron/sqlx"
+	"go.mau.fi/whatsmeow"
 )
 
-type Context struct {
-	context.Context
-
-	UserID int64
-}
-
 type App struct {
+	l *log.Logger
+
 	d   Dependencies
 	cfg Config
 }
 
 type Dependencies struct {
-	TaskUC *taskuc.UseCase
-	UserUC *useruc.UseCase
+	TaskUC    *taskuc.UseCase
+	UserUC    *useruc.UseCase
+	CheckinUC *checkinuc.UseCase
+
+	Cron     *cron.Cron
+	WaClient *whatsmeow.Client
 }
 
 type Config struct{}
 
-type TaskListParams struct {
-	UserName string `rose:"username,u"`
-	Page     int    `rose:"page,p"`
-	Size     int    `rose:"size,s,n"`
+var a *App
+
+func New(logger *log.Logger, deps Dependencies, cfg Config) *App {
+	if a != nil {
+		return a
+	}
+
+	a = &App{
+		l: logger,
+
+		d:   deps,
+		cfg: cfg,
+	}
+
+	for _, f := range tasks {
+		a.d.Cron.RegisterJob(f.Name, f.Schedule, f.Func)
+	}
+
+	err := a.SendCheckInMsgs()
+	if err != nil {
+		a.l.Errorf("SendCheckInMsgs: %v", err)
+	}
+
+	return a
 }
 
-func (h *App) TaskList(ctx *Context, p TaskListParams) (tasks []entity.Task, cnt int, err error) {
-	var userID int64 = -1
-	if p.UserName != "" {
-		user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{
-			Where: []db.Where{
-				{
-					Field: "username",
-					Value: p.UserName,
-				},
-			},
-		})
-		if err != nil {
-			return nil, 0, err
-		}
-		userID = user[0].ID
-	}
+type job struct {
+	Name     string
+	Schedule string
+	Func     func() error
+}
 
-	tasks, cnt, err = h.d.TaskUC.Get(ctx, nil, db.Params{
-		Where: []db.Where{
-			{
-				Field: "user_id",
-				Value: userID,
-			},
-		},
-		Pagination: &db.Pagination{
-			Limit:  p.Size,
-			Offset: (p.Page - 1) * p.Size,
-		},
+var (
+	tasks = []job{}
+)
+
+func registerTask(name, schedule string, f func() error) struct{} {
+	tasks = append(tasks, job{
+		Name:     name,
+		Schedule: schedule,
+		Func:     f,
 	})
-	if err != nil {
-		return nil, 0, err
-	}
+	return struct{}{}
+}
 
-	return tasks, cnt, nil
+func (a *App) GetUser(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (data []entity.User, total int, err error) {
+	return a.d.UserUC.Get(ctx, dbTx, param)
 }

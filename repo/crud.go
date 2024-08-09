@@ -17,7 +17,7 @@ type IStdRepo[T any] interface {
 	Update(ctx context.Context, dbTx *sqlx.Tx, newData T) (data T, err error)
 	Delete(ctx context.Context, dbTx *sqlx.Tx, id string) (err error)
 	Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (data []T, total int, err error)
-	GetByIDs(ctx context.Context, dbTx *sqlx.Tx, ids []string, pg entity.Pagination) (data []T, total int, err error)
+	GetByIDs(ctx context.Context, dbTx *sqlx.Tx, ids []int, pg entity.Pagination) (data []T, total int, err error)
 }
 
 type StdFields interface {
@@ -59,13 +59,41 @@ func (c *StdCRUD[T]) getFields() []string {
 	}
 	fieldN := elem.NumField()
 	for i := 0; i < fieldN; i++ {
-		field := elem.FieldByIndex([]int{i})
+		field := elem.Field(i)
 		tag := string(field.Tag.Get("db"))
-		if field.Type != reflect.TypeOf(entity.StdFields{}) {
+		if field.Type == reflect.TypeOf(entity.StdFields{}) {
+			fmt.Printf(" >> debug >> c.getStdFields(): %#v\n", c.getStdFields())
+			c.fields = append(c.fields, c.getStdFields()...)
+		} else {
 			c.fields = append(c.fields, tag)
 		}
 	}
+
+	fmt.Printf(" >> debug >> c.fields: %#v\n", c.fields)
 	return c.fields
+}
+
+var stdFields []string = nil
+
+func (c *StdCRUD[T]) getStdFields() []string {
+	if stdFields != nil {
+		return stdFields
+	}
+
+	t := reflect.TypeOf(entity.StdFields{})
+	var fields []string
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("db")
+		if tag == "id" {
+			continue
+		}
+		fields = append(fields, tag)
+	}
+
+	stdFields = fields
+
+	return fields
 }
 
 func (c *StdCRUD[T]) getFieldsString() string {
@@ -119,7 +147,7 @@ func (c *StdCRUD[T]) Create(ctx context.Context, dbTx *sqlx.Tx, newData []T) (da
 
 	q := `INSERT INTO %s (%s) VALUES (%s) RETURNING id,%s`
 	q = fmt.Sprintf(q, c.tableName, fields, placeHolders, fields)
-
+	fmt.Printf(" >> debug >> q: %s\n", q)
 	q, arg, err := sqlx.Named(q, newData)
 	if err != nil {
 		return newData, err
@@ -198,6 +226,8 @@ func (c *StdCRUD[T]) Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (d
 	param.BuildWhere()
 	countQ, countArgs := param.GetQuery(countQ)
 	q, args := param.BuildSort().BuildPagination().GetQuery(q)
+	fmt.Printf(" >> debug >> countQ: %s\n", countQ)
+	fmt.Printf(" >> debug >> q: %s\n", q)
 
 	err = querier.GetContext(ctx, &total, c.db.Rebind(countQ), countArgs...)
 	if err != nil {
@@ -212,7 +242,7 @@ func (c *StdCRUD[T]) Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (d
 	return data, total, nil
 }
 
-func (c *StdCRUD[T]) GetByIDs(ctx context.Context, dbTx *sqlx.Tx, ids []string, pg entity.Pagination) (data []T, total int, err error) {
+func (c *StdCRUD[T]) GetByIDs(ctx context.Context, dbTx *sqlx.Tx, ids []int, pg entity.Pagination) (data []T, total int, err error) {
 	defer trace.Default(&ctx, &err)()
 
 	data, total, err = c.Get(ctx, dbTx, db.Params{

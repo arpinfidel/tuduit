@@ -4,12 +4,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/arpinfidel/tuduit/app"
+	"github.com/arpinfidel/tuduit/pkg/ctxx"
 )
 
 func TestHandler_validateRaw(t *testing.T) {
 	type args struct {
-		ctx     *app.Context
+		ctx     *ctxx.Context
 		runArgs []string
 		v       any
 	}
@@ -24,7 +24,7 @@ func TestHandler_validateRaw(t *testing.T) {
 			name: "valid simple",
 			h:    &Handler{},
 			args: args{
-				ctx:     &app.Context{},
+				ctx:     &ctxx.Context{},
 				runArgs: []string{"test"},
 				v: &struct {
 					Title string `tuduit:"title,required"`
@@ -41,7 +41,7 @@ func TestHandler_validateRaw(t *testing.T) {
 			name: "invalid simple",
 			h:    &Handler{},
 			args: args{
-				ctx:     &app.Context{},
+				ctx:     &ctxx.Context{},
 				runArgs: []string{},
 				v: &struct {
 					Title string `tuduit:"title,required"`
@@ -54,7 +54,7 @@ func TestHandler_validateRaw(t *testing.T) {
 			name: "valid variadic",
 			h:    &Handler{},
 			args: args{
-				ctx:     &app.Context{},
+				ctx:     &ctxx.Context{},
 				runArgs: []string{"test", "test2"},
 				v: &struct {
 					Title []string `tuduit:"title,required"`
@@ -71,7 +71,7 @@ func TestHandler_validateRaw(t *testing.T) {
 			name: "invalid variadic",
 			h:    &Handler{},
 			args: args{
-				ctx:     &app.Context{},
+				ctx:     &ctxx.Context{},
 				runArgs: []string{},
 				v: &struct {
 					Title []string `tuduit:"title,required"`
@@ -84,7 +84,7 @@ func TestHandler_validateRaw(t *testing.T) {
 			name: "valid complex",
 			h:    &Handler{},
 			args: args{
-				ctx:     &app.Context{},
+				ctx:     &ctxx.Context{},
 				runArgs: []string{"test", "1", "test2", "test3"},
 				v: &struct {
 					Title  string   `tuduit:"title,required"`
@@ -107,7 +107,7 @@ func TestHandler_validateRaw(t *testing.T) {
 			name: "invalid complex",
 			h:    &Handler{},
 			args: args{
-				ctx:     &app.Context{},
+				ctx:     &ctxx.Context{},
 				runArgs: []string{"test"},
 				v: &struct {
 					Title  string   `tuduit:"title,required"`

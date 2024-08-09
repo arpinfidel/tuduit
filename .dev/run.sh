@@ -6,8 +6,8 @@ source ~/.bashrc;
 echo 'use debug =' $USE_DEBUG;
 if [ "$USE_DEBUG" = "true" ]; then
 	echo 'debug mode';
-	parallel --linebuffer --tagstring [{1}] --colsep ' ' -a ./.dev/run.txt /go/bin/dlv --continue --listen=:{2} --headless=true --api-version=2 --accept-multiclient exec {3} -- {4} {5} {6} {7};
+	parallel --linebuffer --tagstring [{1}] --colsep ' ' -a ./.dev/run.txt /go/bin/dlv --continue --listen=:{2} --headless=true --api-version=2 --accept-multiclient exec {3};
 else
 	echo 'normal mode';
-	parallel --linebuffer --tagstring [{1}] --colsep ' ' -a ./.dev/run.txt {3} {4} {5} {6} {7};
+	parallel --linebuffer --tagstring [{1}] --colsep ' ' -a ./.dev/run.txt {3};
 fi

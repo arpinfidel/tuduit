@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/arpinfidel/tuduit/app"
+	"github.com/arpinfidel/tuduit/pkg/ctxx"
 	taskuc "github.com/arpinfidel/tuduit/usecase/task"
 	useruc "github.com/arpinfidel/tuduit/usecase/user"
 	"github.com/urfave/cli/v2"
@@ -42,7 +43,7 @@ func New(deps Dependencies, cfg Config) *Handler {
 	}
 }
 
-type ActionFunc func(ctx *app.Context, c *cli.Context) (err error)
+type ActionFunc func(ctx *ctxx.Context, c *cli.Context) (err error)
 
 func (h *Handler) output(output string) (err error) {
 	switch h.cfg.OutputType {
@@ -66,7 +67,7 @@ func (h *Handler) List() (flags []cli.Flag, actionFunc ActionFunc) {
 		return nil, nil
 	}
 
-	actionFunc = func(ctx *app.Context, c *cli.Context) (err error) {
+	actionFunc = func(ctx *ctxx.Context, c *cli.Context) (err error) {
 		args := struct {
 			Page int `tuduit:"page"`
 		}{
@@ -86,7 +87,7 @@ func (h *Handler) List() (flags []cli.Flag, actionFunc ActionFunc) {
 			return err
 		}
 
-		tasks, cnt, err := h.d.App.TaskList(ctx, app.TaskListParams{
+		res, err := h.d.App.GetTaskList(ctx, app.TaskListParams{
 			UserName: flags.Username,
 			Page:     args.Page,
 			Size:     flags.Size,
@@ -96,11 +97,11 @@ func (h *Handler) List() (flags []cli.Flag, actionFunc ActionFunc) {
 		}
 
 		msg := ""
-		for _, task := range tasks {
+		for _, task := range res.Tasks {
 			msg += fmt.Sprintf("%s\n", task.Name)
 		}
 
-		msg += fmt.Sprintf("page %d/%d", args.Page, cnt/flags.Size+1)
+		msg += fmt.Sprintf("page %d/%d", args.Page, res.Count/flags.Size+1)
 
 		return h.output(msg)
 	}

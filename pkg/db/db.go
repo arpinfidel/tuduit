@@ -29,6 +29,9 @@ func New(driver, master, slave string) (*DB, error) {
 	}
 
 	return &DB{
+		Master: masterDB,
+		Slave:  slaveDB,
+
 		master: masterDB,
 		slave:  slaveDB,
 		driver: driver,
