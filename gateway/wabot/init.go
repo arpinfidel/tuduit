@@ -2,7 +2,6 @@ package wabot
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -50,17 +49,30 @@ func New(ctx context.Context, l *log.Logger, deps Dependencies) *WaBot {
 func wrapHandler[T any, U any](f func(ctx *ctxx.Context, req T) (resp U, err error)) func(ctx *ctxx.Context, text string) (string, error) {
 	type help[T any] struct {
 		T    T    `rose:"flatten="`
-		Help bool `rose:"help"`
+		Help bool `rose:"help,h"`
 	}
 	return func(ctx *ctxx.Context, text string) (string, error) {
+
 		req := help[T]{}
 		r, err := rose.NewParser(prefix).ParseTextMsg(text, &req)
+
 		if err != nil {
-			return "", err
+
+			return "internal error", err
 		}
 
 		if req.Help {
+
 			return rose.Help(req.T)
+		}
+
+		if len(r.Errors) > 0 {
+
+			errStrings := []string{}
+			for _, e := range r.Errors {
+				errStrings = append(errStrings, e.Error())
+			}
+			return "", errors.New("\n" + strings.Join(errStrings, "\n"))
 		}
 
 		if !r.Valid {
@@ -110,6 +122,7 @@ func (s *WaBot) eventHandler(evt interface{}) {
 
 		usr := usrs[0]
 		ctx := ctxx.New(s.ctx, usr.ID)
+		ctx = ctxx.WithWhatsappMessage(ctx, v)
 
 		switch v.Info.Type {
 		default:
@@ -131,9 +144,6 @@ func (s *WaBot) eventHandler(evt interface{}) {
 }
 
 func (s *WaBot) handleText(ctx *ctxx.Context, v *events.Message) (err error) {
-	fmt.Printf(" >> debug >> v.Message: %s\n", func() string { j, _ := json.MarshalIndent(v.Message, "", "  "); return string(j) }())
-	fmt.Printf(" >> debug >> v.RawMessage: %s\n", func() string { j, _ := json.MarshalIndent(v.RawMessage, "", "  "); return string(j) }())
-
 	text := ""
 
 	if v.Message != nil && v.Message.ExtendedTextMessage != nil && v.Message.ExtendedTextMessage.Text != nil {
@@ -153,13 +163,11 @@ func (s *WaBot) handleText(ctx *ctxx.Context, v *events.Message) (err error) {
 		return nil
 	}
 
-	fmt.Printf(" >> debug >> text: %s\n", text)
-
 	text = strings.TrimSpace(text[len(prefix+"tuduit"):])
 	parts := strings.SplitN(text, "\n", 2)
-	fmt.Printf(" >> debug >> parts: %s\n", parts)
+
 	parts2 := strings.SplitN(parts[0], " ", 2)
-	fmt.Printf(" >> debug >> parts2: %s\n", parts2)
+
 	command := parts2[0]
 	value := ""
 	if len(parts2) > 1 {
@@ -169,10 +177,9 @@ func (s *WaBot) handleText(ctx *ctxx.Context, v *events.Message) (err error) {
 		value += "\n" + parts[1]
 	}
 
-	fmt.Printf(" >> debug >> value: %s\n", value)
-
 	resp, err := s.routeText(ctx, command, value)
 	if err != nil {
+
 		s.l.Errorf("error in %v command: %v", command, err.Error())
 		s.d.WaClient.SendMessage(s.ctx, v.Info.Chat, &waE2E.Message{
 			Conversation: proto.String(fmt.Sprintf("error in %v command: %v", command, err.Error())),
@@ -188,34 +195,56 @@ func (s *WaBot) handleText(ctx *ctxx.Context, v *events.Message) (err error) {
 }
 
 func (s *WaBot) routeText(ctx *ctxx.Context, command string, value string) (resp string, err error) {
-	funcs := []struct {
+	type comm struct {
+		group string
 		names []string
 		f     func(*ctxx.Context, string) (string, error)
-	}{
+	}
+	funcs := []comm{
 		{
-			names: []string{"list", "l"},
+			group: "task",
+			names: []string{"task-list", "tl"},
 			f:     wrapHandler(s.d.App.GetTaskList),
 		},
 		{
-			names: []string{"create", "c"},
+			group: "task",
+			names: []string{"task-create", "tc"},
 			f:     wrapHandler(s.d.App.CreateTask),
 		},
 		{
-			names: []string{"update", "u"},
+			group: "task",
+			names: []string{"task-update", "tu"},
 			f:     wrapHandler(s.d.App.UpdateTask),
+		},
+		{
+			group: "schedule",
+			names: []string{"schedule-create", "sc"},
+			f:     wrapHandler(s.d.App.CreateSchedule),
+		},
+		{
+			group: "misc",
+			names: []string{"reminder-create", "rc"},
+			f:     wrapHandler(s.d.App.SetReminder),
 		},
 	}
 
-	funcs = append(funcs, struct {
-		names []string
-		f     func(*ctxx.Context, string) (string, error)
-	}{
+	funcs = append(funcs, comm{
+		group: "misc",
 		names: []string{"help", "h", ""},
 		f: func(ctx *ctxx.Context, s string) (string, error) {
 			ss := "available commands:\n"
 
+			groups := map[string][]comm{}
 			for _, fs := range funcs {
-				ss += fmt.Sprintf(" - %s\n", strings.Join(fs.names, " | "))
+				groups[fs.group] = append(groups[fs.group], fs)
+			}
+
+			for group, fs := range groups {
+				ss += fmt.Sprintf("%s:\n", group)
+
+				for _, f := range fs {
+					ss += fmt.Sprintf(" - %s\n", strings.Join(f.names, " | "))
+				}
 			}
 
 			return ss, nil

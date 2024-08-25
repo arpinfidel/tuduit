@@ -65,10 +65,13 @@ func (c *Cron) Wrap(f Job) func() {
 }
 
 func (c *Cron) RegisterJob(schedule string, name string, f func() error) {
-	c.client.AddFunc(schedule, c.Wrap(Job{
+	_, err := c.client.AddFunc(schedule, c.Wrap(Job{
 		Name: name,
 		Func: f,
 	}))
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (c *Cron) Start() error {

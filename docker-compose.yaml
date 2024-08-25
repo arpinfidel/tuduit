@@ -59,18 +59,19 @@ services:
   #   restart: always
   #   image: redis
   #   container_name: tuduit_redis
-  # pg:
-  #   restart: always
-  #   image: "postgres:12"
-  #   container_name: "tuduit_pg"
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     POSTGRES_DB: tuduit
-  #     POSTGRES_HOST_AUTH_METHOD: trust
-  #   volumes:
-  #     - postgres-init:/docker-entrypoint-initdb.d/init.sql
-  #     - postgres-data:/var/lib/postgresql/data
+  pg:
+    restart: always
+    image: "postgres:12"
+    platform: linux/amd64
+    container_name: "tuduit_pg"
+    ports:
+      - "2010:5432"
+    environment:
+      POSTGRES_DB: tuduit
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres-init:/docker-entrypoint-initdb.d/init.sql
+      - postgres-data:/var/lib/postgresql/data
   # nsqlookupd:
   #   restart: always
   #   image: nsqio/nsq
@@ -105,7 +106,7 @@ services:
 volumes:
   gomod:
   gocache:
-  # postgres-init:
+  postgres-init:
   postgres-data:
   minio_storage:
 networks:

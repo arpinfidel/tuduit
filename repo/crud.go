@@ -62,14 +62,13 @@ func (c *StdCRUD[T]) getFields() []string {
 		field := elem.Field(i)
 		tag := string(field.Tag.Get("db"))
 		if field.Type == reflect.TypeOf(entity.StdFields{}) {
-			fmt.Printf(" >> debug >> c.getStdFields(): %#v\n", c.getStdFields())
+
 			c.fields = append(c.fields, c.getStdFields()...)
 		} else {
 			c.fields = append(c.fields, tag)
 		}
 	}
 
-	fmt.Printf(" >> debug >> c.fields: %#v\n", c.fields)
 	return c.fields
 }
 
@@ -147,7 +146,7 @@ func (c *StdCRUD[T]) Create(ctx context.Context, dbTx *sqlx.Tx, newData []T) (da
 
 	q := `INSERT INTO %s (%s) VALUES (%s) RETURNING id,%s`
 	q = fmt.Sprintf(q, c.tableName, fields, placeHolders, fields)
-	fmt.Printf(" >> debug >> q: %s\n", q)
+
 	q, arg, err := sqlx.Named(q, newData)
 	if err != nil {
 		return newData, err
@@ -226,8 +225,6 @@ func (c *StdCRUD[T]) Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (d
 	param.BuildWhere()
 	countQ, countArgs := param.GetQuery(countQ)
 	q, args := param.BuildSort().BuildPagination().GetQuery(q)
-	fmt.Printf(" >> debug >> countQ: %s\n", countQ)
-	fmt.Printf(" >> debug >> q: %s\n", q)
 
 	err = querier.GetContext(ctx, &total, c.db.Rebind(countQ), countArgs...)
 	if err != nil {

@@ -14,10 +14,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var _ = registerTask("SendCheckInMsgs", "* * * * *", a.SendCheckInMsgs)
+var _ = registerTask("SendCheckInMsgs", "* * * * *", func() func() error { return a.SendCheckInMsgs })
 
 func (a *App) SendCheckInMsgs() error {
 	ctx := context.Background()
+
+	now := time.Now().UTC()
 
 	ci, _, err := a.d.CheckinUC.Get(ctx, nil, db.Params{
 		Where: []db.Where{
@@ -25,14 +27,14 @@ func (a *App) SendCheckInMsgs() error {
 				Op: db.AndOp,
 				Value: []db.Where{
 					{
-						Field: "time(check_in_time)",
+						Field: "check_in_time",
 						Op:    db.LtOrEqOp,
-						Value: "time('now')",
+						Value: now.Format("15:04:05"),
 					},
 					{
-						Field: "datetime(last_sent)",
+						Field: "last_sent",
 						Op:    db.LtOrEqOp,
-						Value: "datetime(date('now'), '+'||check_in_time)",
+						Value: now.Format("2006-01-02"),
 					},
 				},
 			},
@@ -45,13 +47,12 @@ func (a *App) SendCheckInMsgs() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf(" >> debug >> ci: %s\n", func() string { j, _ := json.MarshalIndent(ci, "", "  "); return string(j) }())
 
-	userIDsMap := map[int]struct{}{}
+	userIDsMap := map[int64]struct{}{}
 	for _, c := range ci {
 		userIDsMap[c.UserID] = struct{}{}
 	}
-	userIDs := []int{}
+	userIDs := []int64{}
 	for u := range userIDsMap {
 		userIDs = append(userIDs, u)
 	}
@@ -68,12 +69,13 @@ func (a *App) SendCheckInMsgs() error {
 	if err != nil {
 		return err
 	}
-	usersMap := map[int]entity.User{}
+	usersMap := map[int64]entity.User{}
 	for _, u := range users {
 		usersMap[u.ID] = u
 	}
 
 	for _, c := range ci {
+		fmt.Printf(" >> debug >> c: %s\n", func() string { b, _ := json.MarshalIndent(c, "", "  "); return string(b) }())
 		u, ok := usersMap[c.UserID]
 		if !ok {
 			return fmt.Errorf("user not found")
@@ -102,9 +104,7 @@ func (a *App) SendCheckInMsgs() error {
 		}
 		respStr := string(respB)
 
-		_, err = a.d.WaClient.SendMessage(ctx, types.JID{
-			User: u.WhatsappNumber,
-		}, &waE2E.Message{
+		_, err = a.d.WaClient.SendMessage(ctx, types.NewJID(u.WhatsappNumber, types.DefaultUserServer), &waE2E.Message{
 			Conversation: &respStr,
 		})
 		if err != nil {

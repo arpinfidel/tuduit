@@ -29,7 +29,8 @@ type Where struct {
 type Operator int
 
 const (
-	NotNullOp Operator = iota
+	DefaultOp Operator = iota
+	NotNullOp
 	IsNullOp
 	EqOp
 	NotEqOp
@@ -52,7 +53,19 @@ func (w *Where) buildOperator() sq.Sqlizer {
 	case NotNullOp:
 		return sq.NotEq{w.Field: nil}
 	case IsNullOp:
-		return sq.Eq{w.Field: nil}
+		return sq.Eq{w.Field: v}
+		// switch vv := v.(type) {
+		// default:
+		// 	panic(fmt.Sprintf("unsupported type %T", v))
+		// case []string:
+		// 	return in(w.Field, vv)
+		// case []int:
+		// 	return in(w.Field, vv)
+		// case []int64:
+		// 	return in(w.Field, vv)
+		// case nil:
+		// 	return sq.Expr("1 = 0")
+		// }
 	case EqOp:
 		return sq.Eq{w.Field: v}
 	case NotEqOp:
@@ -76,6 +89,14 @@ func (w *Where) buildOperator() sq.Sqlizer {
 	case RawOp:
 		return sq.Expr(w.RawSQL)
 	}
+}
+
+func in[T any](field string, arr []T) sq.Or {
+	in := sq.Or{}
+	for _, v := range arr {
+		in = append(in, sq.Eq{field: v})
+	}
+	return in
 }
 
 func or(v interface{}) sq.Or {

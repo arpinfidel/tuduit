@@ -1,3 +1,5 @@
+export GOLANG_CONTAINER=tuduit_golang
+
 network:
 	@docker network create tuduit-network
 
@@ -44,11 +46,17 @@ new-migration migration:
 	echo "migration name: $${mig}"; \
 	docker exec -t tuduit_golang migrate create -ext sql -dir db/migrations -seq $${mig}
 migrate-up:
-	docker exec -t tuduit_golang migrate -source file://./db/migrations -database "sqlite3:///var/lib/sqlite3/tuduit.db" up
+	docker exec -t tuduit_golang migrate -source file://./db/migrations -database "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable" up
 
 migrate-down:
-	docker exec -t tuduit_golang migrate -source file://./db/migrations -database "sqlite3:///var/lib/sqlite3/tuduit.db" down
+	docker exec -t tuduit_golang migrate -source file://./db/migrations -database "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable" down
 
 migrate-drop:
-	rm ./files//var/lib/sqlite3/tuduit.db
-	# docker exec -t tuduit_golang migrate -path ./db/migrations -database "sqlite3:///var/lib/sqlite3/tuduit.db" drop -f
+	docker exec -t tuduit_golang migrate -path ./db/migrations -database "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable" drop -f
+
+restart r:
+	@docker exec -ti ${GOLANG_CONTAINER} bash -c ".dev/restart.sh"
+	@docker exec -ti ${GOLANG_CONTAINER} bash -c ".dev/restart.sh"
+
+bash:
+	@docker exec -ti ${GOLANG_CONTAINER} bash

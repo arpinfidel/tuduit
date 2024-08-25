@@ -14,9 +14,11 @@ import (
 	"github.com/arpinfidel/tuduit/pkg/db"
 	"github.com/arpinfidel/tuduit/pkg/log"
 	checkinrepo "github.com/arpinfidel/tuduit/repo/checkin"
+	schedulerepo "github.com/arpinfidel/tuduit/repo/schedule"
 	taskrepo "github.com/arpinfidel/tuduit/repo/task"
 	userrepo "github.com/arpinfidel/tuduit/repo/user"
 	checkinuc "github.com/arpinfidel/tuduit/usecase/checkin"
+	scheduleuc "github.com/arpinfidel/tuduit/usecase/schedule"
 	taskuc "github.com/arpinfidel/tuduit/usecase/task"
 	useruc "github.com/arpinfidel/tuduit/usecase/user"
 	"github.com/jmoiron/sqlx"
@@ -69,7 +71,7 @@ func main() {
 	// }
 	// ctx := context.Background()
 
-	// db := initPostgres()
+	db := main.initPostgres()
 
 	// // init sqlite
 	// sqlite, err := sql.Open("sqlite3", "/var/lib/sqlite3/tuduit.db")
@@ -78,18 +80,18 @@ func main() {
 	// }
 	// defer sqlite.Close()
 
-	if _, err := os.Stat("/var/lib/sqlite3/tuduit.db"); os.IsNotExist(err) {
-		// Create the file if it does not exist
-		_, err = os.Create("/var/lib/sqlite3/tuduit.db")
-		if err != nil {
-			main.l.Fatalf("failed to create file: %v", err)
-		}
-	}
+	// if _, err := os.Stat("/var/lib/sqlite3/tuduit.db"); os.IsNotExist(err) {
+	// 	// Create the file if it does not exist
+	// 	_, err = os.Create("/var/lib/sqlite3/tuduit.db")
+	// 	if err != nil {
+	// 		main.l.Fatalf("failed to create file: %v", err)
+	// 	}
+	// }
 
-	db, err := db.New("sqlite3", "file:/var/lib/sqlite3/tuduit.db?_foreign_keys=on", "file:/var/lib/sqlite3/tuduit.db?_foreign_keys=on")
-	if err != nil {
-		main.l.Fatalln(err)
-	}
+	// db, err := db.New("sqlite3", "file:/var/lib/sqlite3/tuduit.db?_foreign_keys=on", "file:/var/lib/sqlite3/tuduit.db?_foreign_keys=on")
+	// if err != nil {
+	// 	main.l.Fatalln(err)
+	// }
 
 	waBot, err := main.initWaBot(db)
 	if err != nil {
@@ -106,9 +108,11 @@ func main() {
 	// if err != nil {
 	// 	main.l.Fatalln(err)
 	// }
-	// fmt.Printf(" >> debug >> x: %#v\n", x)
 
 	taskRepo := taskrepo.New(taskrepo.Dependencies{
+		DB: db,
+	})
+	scheduleRepo := schedulerepo.New(schedulerepo.Dependencies{
 		DB: db,
 	})
 	userRepo := userrepo.New(userrepo.Dependencies{
@@ -121,6 +125,9 @@ func main() {
 	taskUC := taskuc.New(taskuc.Dependencies{
 		Repo: taskRepo,
 	})
+	scheduleUC := scheduleuc.New(scheduleuc.Dependencies{
+		Repo: scheduleRepo,
+	})
 	userUC := useruc.New(useruc.Dependencies{
 		Repo: userRepo,
 	})
@@ -131,11 +138,14 @@ func main() {
 	cron := cron.New(main.ctx, main.l)
 
 	a := app.New(main.l, app.Dependencies{
-		TaskUC:    taskUC,
-		UserUC:    userUC,
-		CheckinUC: checkinUC,
+		TaskUC:     taskUC,
+		ScheduleUC: scheduleUC,
+		UserUC:     userUC,
+		CheckinUC:  checkinUC,
 
 		Cron: cron,
+
+		WaClient: waBot,
 	}, app.Config{})
 
 	// minioClient := initMinio()
@@ -155,8 +165,14 @@ func main() {
 	main.cancel()
 }
 
-func (main *Start) initPostgres() *sqlx.DB {
-	db, err := sqlx.Open("postgres", "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable")
+func (main *Start) initPostgres() *db.DB {
+	// db, err := sqlx.Open("postgres", "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable")
+	// if err != nil {
+	// 	main.l.Fatalln(err)
+	// }
+	// return db
+
+	db, err := db.New("postgres", "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable", "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable")
 	if err != nil {
 		main.l.Fatalln(err)
 	}
@@ -200,7 +216,7 @@ func (main *Start) initWaBot(db *db.DB) (client *whatsmeow.Client, err error) {
 	// https://godocs.io/go.mau.fi/whatsmeow#example-package
 	var dbLog waLog.Logger = nil
 	// dbLog = waLog.Stdout("Database", "DEBUG", true)
-	container := sqlstore.NewWithDB(db.GetMaster().DB, "sqlite3", dbLog)
+	container := sqlstore.NewWithDB(db.GetMaster().DB, "postgres", dbLog)
 	err = container.Upgrade()
 	if err != nil {
 		return nil, err
@@ -211,8 +227,9 @@ func (main *Start) initWaBot(db *db.DB) (client *whatsmeow.Client, err error) {
 	if err != nil {
 		return nil, err
 	}
-	clientLog := waLog.Stdout("Client", "DEBUG", true)
-	client = whatsmeow.NewClient(deviceStore, clientLog)
+
+	// clientLog := waLog.Stdout("Client", "DEBUG", true)
+	client = whatsmeow.NewClient(deviceStore, nil)
 
 	if client.Store.ID == nil {
 		// No ID stored, new login

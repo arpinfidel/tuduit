@@ -16,8 +16,8 @@ type TaskListParams struct {
 	Search    string `rose:"search,s,q"`
 	UserName  string `rose:"username,u"`
 	Started   *bool  `rose:"started"`
-	Completed *bool  `rose:"completed"`
-	Archived  *bool  `rose:"archived"`
+	Completed *bool  `rose:"completed,default=false"`
+	Archived  *bool  `rose:"archived,default=false"`
 	// Tags     []string `rose:"tags,t"`
 }
 
@@ -27,8 +27,10 @@ type TaskListResults struct {
 }
 
 func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResults, err error) {
-	var userID int = ctx.UserID
+	userID := ctx.UserID
+
 	if p.UserName != "" {
+
 		user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{
 			Where: []db.Where{
 				{
@@ -50,6 +52,7 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 	where := []db.Where{
 		{
 			Field: "user_id",
+			Op:    db.EqOp,
 			Value: userID,
 		},
 	}
@@ -72,23 +75,35 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 	}
 
 	if p.Started != nil {
+		nullOp := db.IsNullOp
+		if *p.Started {
+			nullOp = db.NotNullOp
+		}
 		where = append(where, db.Where{
-			Field: "started",
-			Value: p.Started,
+			Field: "started_at",
+			Op:    nullOp,
 		})
 	}
 
 	if p.Completed != nil {
+		nullOp := db.IsNullOp
+		if *p.Completed {
+			nullOp = db.NotNullOp
+		}
 		where = append(where, db.Where{
-			Field: "completed",
-			Value: p.Completed,
+			Field: "completed_at",
+			Op:    nullOp,
 		})
 	}
 
 	if p.Archived != nil {
+		nullOp := db.IsNullOp
+		if *p.Archived {
+			nullOp = db.NotNullOp
+		}
 		where = append(where, db.Where{
-			Field: "archived",
-			Value: p.Archived,
+			Field: "archived_at",
+			Op:    nullOp,
 		})
 	}
 

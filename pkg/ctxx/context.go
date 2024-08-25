@@ -2,15 +2,19 @@ package ctxx
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/arpinfidel/tuduit/pkg/rose"
+	"go.mau.fi/whatsmeow/types/events"
 )
 
 type Context struct {
 	context.Context
 
-	UserID int
+	UserID int64
 	Body   Body
+
+	WAEvent *events.Message
 
 	response chan any
 }
@@ -28,7 +32,7 @@ type Body struct {
 
 type Key string
 
-func New(ct context.Context, userID int) *Context {
+func New(ct context.Context, userID int64) *Context {
 	c := &Context{
 		Context: ct,
 		UserID:  userID,
@@ -40,9 +44,20 @@ func New(ct context.Context, userID int) *Context {
 	return c
 }
 
-// GetContext returns the user id from the context
 func GetContext(ct context.Context) *Context {
-	return ct.Value(Key("context")).(*Context)
+	fmt.Printf(" >> debug >> `aa`: %#v\n", `aa`)
+	key := Key("context")
+	fmt.Printf(" >> debug >> `bb`: %#v\n", `bb`)
+	return ct.Value(key).(*Context)
+}
+
+func WithWhatsappMessage(ct context.Context, msg *events.Message) *Context {
+	fmt.Printf(" >> debug >> `a`: %#v\n", `a`)
+	c := GetContext(ct)
+	fmt.Printf(" >> debug >> `b`: %#v\n", `b`)
+	c.WAEvent = msg
+	fmt.Printf(" >> debug >> `c`: %#v\n", `c`)
+	return c
 }
 
 func (c *Context) SetBody(bodyType BodyType, body string) {

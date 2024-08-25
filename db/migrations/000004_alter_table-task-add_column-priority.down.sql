@@ -1,2 +1,2 @@
-alter table task
+alter table mst_task
 drop column priority;

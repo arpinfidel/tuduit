@@ -8,6 +8,7 @@ import (
 	"github.com/arpinfidel/tuduit/pkg/db"
 	"github.com/arpinfidel/tuduit/pkg/log"
 	checkinuc "github.com/arpinfidel/tuduit/usecase/checkin"
+	scheduleuc "github.com/arpinfidel/tuduit/usecase/schedule"
 	taskuc "github.com/arpinfidel/tuduit/usecase/task"
 	useruc "github.com/arpinfidel/tuduit/usecase/user"
 	"github.com/jmoiron/sqlx"
@@ -22,9 +23,10 @@ type App struct {
 }
 
 type Dependencies struct {
-	TaskUC    *taskuc.UseCase
-	UserUC    *useruc.UseCase
-	CheckinUC *checkinuc.UseCase
+	TaskUC     *taskuc.UseCase
+	ScheduleUC *scheduleuc.UseCase
+	UserUC     *useruc.UseCase
+	CheckinUC  *checkinuc.UseCase
 
 	Cron     *cron.Cron
 	WaClient *whatsmeow.Client
@@ -46,13 +48,25 @@ func New(logger *log.Logger, deps Dependencies, cfg Config) *App {
 		cfg: cfg,
 	}
 
+	a.l.Infof("Registering tasks: %d", len(tasks))
 	for _, f := range tasks {
-		a.d.Cron.RegisterJob(f.Name, f.Schedule, f.Func)
+		a.l.Infof("Registering task: %s at %s", f.Name, f.Schedule)
+		a.d.Cron.RegisterJob(f.Schedule, f.Name, f.Func())
 	}
 
 	err := a.SendCheckInMsgs()
 	if err != nil {
 		a.l.Errorf("SendCheckInMsgs: %v", err)
+	}
+
+	err = a.CreateScheduledTasks()
+	if err != nil {
+		a.l.Errorf("CreateScheduledTasks: %v", err)
+	}
+
+	err = a.d.Cron.Start()
+	if err != nil {
+		a.l.Errorf("Cron.Start: %v", err)
 	}
 
 	return a
@@ -61,14 +75,14 @@ func New(logger *log.Logger, deps Dependencies, cfg Config) *App {
 type job struct {
 	Name     string
 	Schedule string
-	Func     func() error
+	Func     func() func() error
 }
 
 var (
 	tasks = []job{}
 )
 
-func registerTask(name, schedule string, f func() error) struct{} {
+func registerTask(name, schedule string, f func() func() error) struct{} {
 	tasks = append(tasks, job{
 		Name:     name,
 		Schedule: schedule,

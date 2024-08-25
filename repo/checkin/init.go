@@ -21,6 +21,6 @@ func New(deps Dependencies) *Repo {
 	return &Repo{
 		deps:         deps,
 		DBConnection: *repo.NewDBConnection(deps.DB),
-		StdCRUD:      repo.NewStdCRUD[entity.CheckIn](deps.DB, "check_in"),
+		StdCRUD:      repo.NewStdCRUD[entity.CheckIn](deps.DB, "mst_check_in"),
 	}
 }

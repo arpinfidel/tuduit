@@ -21,6 +21,6 @@ func New(deps Dependencies) *Repo {
 	return &Repo{
 		deps:         deps,
 		DBConnection: *repo.NewDBConnection(deps.DB),
-		StdCRUD:      repo.NewStdCRUD[entity.Task](deps.DB, "task"),
+		StdCRUD:      repo.NewStdCRUD[entity.Task](deps.DB, "mst_task"),
 	}
 }

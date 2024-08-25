@@ -6,6 +6,9 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
+
+	str2duration "github.com/xhit/go-str2duration/v2"
 )
 
 type Parser struct {
@@ -52,7 +55,7 @@ func castJSON(v string, t reflect.Type) (i any, err error) {
 	i = reflect.New(t).Interface()
 	err = json.Unmarshal([]byte(v), i)
 	if err != nil {
-		return nil, fmt.Errorf("argument is not a valid type")
+		return nil, fmt.Errorf("argument is not a valid type: %s", v)
 	}
 
 	// dereference pointer
@@ -65,7 +68,6 @@ func castJSON(v string, t reflect.Type) (i any, err error) {
 func castType(v string, t reflect.Type) (val any, err error) {
 	switch t.Kind() {
 	default:
-		fmt.Printf(" >> debug >> `hoio`: %s\n", `hoio`)
 		i, err := castJSON(v, t)
 		if err != nil {
 			return nil, err
@@ -75,22 +77,28 @@ func castType(v string, t reflect.Type) (val any, err error) {
 		return v, nil
 	case reflect.Int:
 		i, err := strconv.Atoi(v)
-		if err != nil {
-			return nil, fmt.Errorf("argument is not a valid integer: %s", v)
+		if err == nil {
+			return i, nil
 		}
-		return i, nil
+
+		return nil, fmt.Errorf("argument is not a valid integer: %s", v)
 	case reflect.Int32:
 		i, err := strconv.ParseInt(v, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("argument is not a valid integer: %s", v)
+		if err == nil {
+			return int32(i), nil
 		}
-		return int32(i), nil
+
+		return nil, fmt.Errorf("argument is not a valid integer: %s", v)
 	case reflect.Int64:
 		i, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("argument is not a valid integer: %s", v)
+		if err == nil {
+			return i, nil
 		}
-		return i, nil
+		d, err := str2duration.ParseDuration(v)
+		if err == nil {
+			return d, nil
+		}
+		return nil, fmt.Errorf("argument is not a valid integer or duration: %s", v)
 	case reflect.Float32:
 		i, err := strconv.ParseFloat(v, 32)
 		if err != nil {
@@ -113,6 +121,33 @@ func castType(v string, t reflect.Type) (val any, err error) {
 			return nil, fmt.Errorf("argument is not a valid boolean: %s", v)
 		}
 		return b, nil
+	// case time
+	case reflect.Struct:
+		switch t.String() {
+		default:
+			i, err := castJSON(v, t)
+			if err != nil {
+				return nil, err
+			}
+			return i, nil
+
+		case "time.Time":
+			i, err := time.Parse("2006-01-02 15:04:05", v)
+			if err == nil {
+				return i, nil
+			}
+			i, err = time.Parse("2006-01-02 15:04", v)
+			if err == nil {
+				return i, nil
+			}
+			i, err = time.Parse("2006-01-02", v)
+			if err == nil {
+				return i, nil
+			}
+
+			return nil, fmt.Errorf("argument is not a valid time: %s", v)
+		}
+
 	case reflect.Ptr:
 		v, err := castType(v, t.Elem())
 		if err != nil {
@@ -124,11 +159,7 @@ func castType(v string, t reflect.Type) (val any, err error) {
 		p.Elem().Set(reflect.ValueOf(v))
 		return p.Interface(), nil
 	case reflect.Slice:
-		fmt.Printf(" >> debug >> v: %#v\n", v)
 		if strings.HasPrefix(v, "[") && strings.HasSuffix(v, "]") {
-			fmt.Printf(" >> debug >> `asd`: %s\n", `asd`)
-			asdf, _ := castJSON(v, t)
-			fmt.Printf(" >> debug >> asdf: %#v\n", asdf)
 			return castJSON(v, t)
 		}
 		switch t.Elem().Kind() {
@@ -152,8 +183,6 @@ func castType(v string, t reflect.Type) (val any, err error) {
 }
 
 func parseArgs(args []string, flags map[string]string, target any) (rose Rose, err error) {
-	fmt.Printf(" >> debug >> args: %s\n", func() string { j, _ := json.MarshalIndent(args, "", "  "); return string(j) }())
-	fmt.Printf(" >> debug >> flags: %s\n", func() string { j, _ := json.MarshalIndent(flags, "", "  "); return string(j) }())
 	if reflect.TypeOf(target).Kind() != reflect.Pointer {
 		return rose, fmt.Errorf("target must be a pointer")
 	}
@@ -229,15 +258,13 @@ func parseArgs(args []string, flags map[string]string, target any) (rose Rose, e
 		set := false
 
 		if i-flattened < len(args) {
-			fmt.Printf(" >> debug >> typ.: %#v\n", typ.Name)
 			val, err := castType(args[i-flattened], typ.Type)
 			if err != nil {
-				fmt.Printf(" >> debug >> err.Error(): %#v\n", err.Error())
 				rose.Valid = false
 				rose.Errors = append(rose.Errors, err)
 				continue
 			}
-			fmt.Printf(" >> debug >> val: %#v\n", val)
+
 			value.Set(reflect.ValueOf(val))
 			set = true
 		}
@@ -247,15 +274,13 @@ func parseArgs(args []string, flags map[string]string, target any) (rose Rose, e
 			if !ok {
 				continue
 			}
-			fmt.Printf(" >> debug >> val: %#v\n", val)
 
 			v, err := castType(val, typ.Type)
 			if err != nil {
-				fmt.Printf(" >> debug >> err: %#v\n", err)
+				rose.Valid = false
+				rose.Errors = append(rose.Errors, err)
 				return rose, err
 			}
-
-			fmt.Printf(" >> debug >> v: %#v\n", v)
 
 			value.Set(reflect.ValueOf(v))
 			set = true
@@ -265,17 +290,20 @@ func parseArgs(args []string, flags map[string]string, target any) (rose Rose, e
 		if !set && field.Default != "" {
 			v, err := castType(field.Default, typ.Type)
 			if err != nil {
+
 				return rose, err
 			}
 			value.Set(reflect.ValueOf(v))
 			set = true
 		}
 
-		if !set && field.Required && reflect.ValueOf(target).Elem().Field(i).IsZero() {
+		if !set && field.Required && values[i].IsZero() {
 			rose.Valid = false
 			rose.Errors = append(rose.Errors, fmt.Errorf("argument %s is required", typ.Name))
+
 			continue
 		}
+
 	}
 
 	return rose, nil
@@ -317,14 +345,16 @@ func parseTextMsg(flagPrefix string, text string, target any) (Rose, error) {
 	part := ""
 	isArgs := true
 	if firstLine != "" {
-		flSplit = strings.Split(firstLine, " ")
+		flSplit = strings.Fields(firstLine)
 	}
+
 	for _, str := range flSplit {
 		if strings.HasPrefix(str, flagPrefix) {
 			isArgs = false
 
-			flags[flag] = part
-			flag = ""
+			if flag != "" {
+				flags[flag] = part
+			}
 			flag = strings.TrimPrefix(str, flagPrefix)
 			continue
 		}
@@ -334,7 +364,10 @@ func parseTextMsg(flagPrefix string, text string, target any) (Rose, error) {
 			continue
 		}
 
-		part += " " + str
+		if part != "" {
+			part += " "
+		}
+		part += str
 	}
 
 	if flag != "" {
@@ -357,7 +390,13 @@ func parseTextMsg(flagPrefix string, text string, target any) (Rose, error) {
 	}
 	flags[flag] = part
 
-	return parseArgs(args, flags, target)
+	rose, err := parseArgs(args, flags, target)
+	if err != nil {
+
+		return rose, err
+	}
+
+	return rose, nil
 }
 
 // help returns the help message for the given struct
@@ -369,9 +408,7 @@ func help(target any) (string, error) {
 	}
 
 	fields := []reflect.StructField{}
-	fmt.Printf(" >> debug >> target: %T\n", target)
-	fmt.Printf(" >> debug >> target: %#v\n", target)
-	fmt.Printf(" >> debug >> target: %s\n", func() string { j, _ := json.MarshalIndent(target, "", "  "); return string(j) }())
+
 	for i := 0; i < reflect.TypeOf(target).Elem().NumField(); i++ {
 		structField := reflect.TypeOf(target).Elem().Field(i)
 		fields = append(fields, structField)

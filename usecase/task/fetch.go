@@ -1,26 +1,27 @@
 package taskuc
 
 import (
-	"encoding/json"
-	"fmt"
-	"time"
+	"context"
 
 	"github.com/arpinfidel/tuduit/entity"
-	"github.com/arpinfidel/tuduit/pkg/ctxx"
+	"github.com/arpinfidel/tuduit/pkg/db"
 	"github.com/jmoiron/sqlx"
 )
 
-func (u *UseCase) Create(ctx *ctxx.Context, dbTx *sqlx.Tx, newData []entity.Task) (data []entity.Task, err error) {
-	fmt.Printf(" >> debug >> ctx.UserID: %#v\n", ctx.UserID)
-	for i := range newData {
-		d := &newData[i]
-		d.CreatedAt = time.Now()
-		d.CreatedBy = ctx.UserID
-		d.UpdatedAt = time.Now()
-		d.UpdatedBy = ctx.UserID
-	}
+func (u *UseCase) Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (data []entity.Task, total int, err error) {
+	param.Where = append(param.Where, db.Where{
+		Field: "is_template",
+		Op:    db.EqOp,
+		Value: false,
+	})
+	return u.IRepo.Get(ctx, dbTx, param)
+}
 
-	fmt.Printf(" >> debug >> newData: %s\n", func() string { j, _ := json.MarshalIndent(newData, "", "  "); return string(j) }())
-
-	return u.IRepo.Create(ctx, dbTx, newData)
+func (u *UseCase) GetTemplate(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (data []entity.Task, total int, err error) {
+	param.Where = append(param.Where, db.Where{
+		Field: "is_template",
+		Op:    db.EqOp,
+		Value: true,
+	})
+	return u.IRepo.Get(ctx, dbTx, param)
 }
