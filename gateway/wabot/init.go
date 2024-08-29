@@ -204,7 +204,7 @@ func (s *WaBot) routeText(ctx *ctxx.Context, command string, value string) (resp
 		{
 			group: "task",
 			names: []string{"task-list", "tl"},
-			f:     wrapHandler(s.d.App.GetTaskList),
+			f:     wrapHandler(s.HandlerTaskList),
 		},
 		{
 			group: "task",
