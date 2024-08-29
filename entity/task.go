@@ -8,8 +8,8 @@ import (
 type Task struct {
 	StdFields
 
-	UserIDs        []int64 `db:"user_ids"         json:"user_ids"`
-	TaskScheduleID int64   `db:"task_schedule_id" json:"task_schedule_id"`
+	UserIDs        PQArr[int64] `db:"user_ids"         json:"user_ids"`
+	TaskScheduleID int64        `db:"task_schedule_id" json:"task_schedule_id"`
 
 	Name        string     `db:"name"         json:"name"`
 	Description string     `db:"description"  json:"description"`
