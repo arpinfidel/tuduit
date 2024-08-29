@@ -101,7 +101,7 @@ func (h *Handler) List() (flags []cli.Flag, actionFunc ActionFunc) {
 			msg += fmt.Sprintf("%s\n", task.Name)
 		}
 
-		msg += fmt.Sprintf("page %d/%d", args.Page, res.Count/flags.Size+1)
+		msg += fmt.Sprintf("page %d/%d", args.Page, res.Total/flags.Size+1)
 
 		return h.output(msg)
 	}

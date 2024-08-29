@@ -11,7 +11,7 @@ import (
 
 type TaskListParams struct {
 	Page int `rose:"page,p,default=1"`
-	Size int `rose:"size,n,default=10"`
+	Size int `rose:"size,n,default=25"`
 
 	Search    string `rose:"search,s,q"`
 	UserName  string `rose:"username,u"`
@@ -23,7 +23,8 @@ type TaskListParams struct {
 
 type TaskListResults struct {
 	Tasks []entity.TaskOverview
-	Count int
+	Page  string
+	Total int
 }
 
 func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResults, err error) {
@@ -140,7 +141,9 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 	for _, task := range tasks {
 		res.Tasks = append(res.Tasks, task.Overview())
 	}
-	res.Count = count
+
+	res.Page = fmt.Sprintf("%d/%d", p.Page, count/p.Size+1)
+	res.Total = count
 
 	return res, nil
 }
@@ -157,7 +160,8 @@ func TaskListToString(res TaskListResults) string {
 		}
 	}
 
-	resp += fmt.Sprintf("Total: %d", res.Count)
+	resp += fmt.Sprintf("Total tasks: %d", res.Total)
+	resp += fmt.Sprintf("Page: %s", res.Page)
 
 	return resp
 }
