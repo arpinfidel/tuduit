@@ -46,8 +46,8 @@ func (c *Cron) LogStartEnd(f Job) Job {
 	return Job{
 		Name: f.Name,
 		Func: func() error {
-			c.l.Infof("start")
-			defer c.l.Infof("end")
+			c.l.Infof("start %s", f.Name)
+			defer c.l.Infof("end %s", f.Name)
 			return f.Func()
 		},
 	}
