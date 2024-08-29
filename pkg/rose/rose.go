@@ -132,20 +132,26 @@ func castType(v string, t reflect.Type) (val any, err error) {
 			return i, nil
 
 		case "time.Time":
+			errs := []string{}
 			i, err := time.Parse("2006-01-02 15:04:05", v)
 			if err == nil {
 				return i, nil
 			}
+			errs = append(errs, err.Error())
+
 			i, err = time.Parse("2006-01-02 15:04", v)
 			if err == nil {
 				return i, nil
 			}
+			errs = append(errs, err.Error())
+
 			i, err = time.Parse("2006-01-02", v)
 			if err == nil {
 				return i, nil
 			}
+			errs = append(errs, err.Error())
 
-			return nil, fmt.Errorf("argument is not a valid time: %s", v)
+			return nil, fmt.Errorf("argument is not a valid time: %s (%s)", v, strings.Join(errs, ", "))
 		}
 
 	case reflect.Ptr:

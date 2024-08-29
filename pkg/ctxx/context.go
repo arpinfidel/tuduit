@@ -2,7 +2,6 @@ package ctxx
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/arpinfidel/tuduit/pkg/rose"
 	"go.mau.fi/whatsmeow/types/events"
@@ -45,18 +44,13 @@ func New(ct context.Context, userID int64) *Context {
 }
 
 func GetContext(ct context.Context) *Context {
-	fmt.Printf(" >> debug >> `aa`: %#v\n", `aa`)
 	key := Key("context")
-	fmt.Printf(" >> debug >> `bb`: %#v\n", `bb`)
 	return ct.Value(key).(*Context)
 }
 
 func WithWhatsappMessage(ct context.Context, msg *events.Message) *Context {
-	fmt.Printf(" >> debug >> `a`: %#v\n", `a`)
 	c := GetContext(ct)
-	fmt.Printf(" >> debug >> `b`: %#v\n", `b`)
 	c.WAEvent = msg
-	fmt.Printf(" >> debug >> `c`: %#v\n", `c`)
 	return c
 }
 

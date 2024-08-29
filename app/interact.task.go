@@ -170,8 +170,8 @@ type CreateTaskParams struct {
 	Name        string     `rose:"name,n,required="`
 	Priority    int        `rose:"priority,p,default=2"`
 	Description string     `rose:"description,d"`
-	StartDate   *time.Time `rose:"start_date,dt"`
-	EndDate     *time.Time `rose:"end_date,dt"`
+	StartDate   *time.Time `rose:"start_date,sd"`
+	EndDate     *time.Time `rose:"end_date,ed"`
 	Assignee    string     `rose:"assignee,a"`
 }
 
