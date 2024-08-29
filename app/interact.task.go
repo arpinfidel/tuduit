@@ -30,7 +30,6 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 	userID := ctx.UserID
 
 	if p.UserName != "" {
-
 		user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{
 			Where: []db.Where{
 				{
@@ -74,8 +73,8 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 		})
 	}
 
+	nullOp := db.IsNullOp
 	if p.Started != nil {
-		nullOp := db.IsNullOp
 		if *p.Started {
 			nullOp = db.NotNullOp
 		}
@@ -118,6 +117,20 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 				Field: "priority",
 				Asc:   true,
 			},
+			{
+				Field:      "end_date",
+				Asc:        true,
+				NullsFirst: false,
+			},
+			{
+				Field:      "start_date",
+				Asc:        true,
+				NullsFirst: true,
+			},
+			{
+				Field: "id",
+				Asc:   true,
+			},
 		},
 	})
 	if err != nil {
@@ -132,11 +145,30 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 	return res, nil
 }
 
+func TaskListToString(res TaskListResults) string {
+	resp := ""
+	for _, t := range res.Tasks {
+		resp += fmt.Sprintf("%d. (P%d) %s\n", t.ID, t.Priority, t.Name)
+		if t.StartDate != "" {
+			resp += fmt.Sprintf("\tStart: %s\n", t.StartDate)
+		}
+		if t.EndDate != "" {
+			resp += fmt.Sprintf("\tEnd: %s\n", t.EndDate)
+		}
+	}
+
+	resp += fmt.Sprintf("Total: %d", res.Count)
+
+	return resp
+}
+
 type CreateTaskParams struct {
-	Name        string `rose:"name,n,required="`
-	Priority    int    `rose:"priority,p,default=2"`
-	Description string `rose:"description,d"`
-	Assignee    string `rose:"assignee,a"`
+	Name        string     `rose:"name,n,required="`
+	Priority    int        `rose:"priority,p,default=2"`
+	Description string     `rose:"description,d"`
+	StartDate   *time.Time `rose:"start_date,dt"`
+	EndDate     *time.Time `rose:"end_date,dt"`
+	Assignee    string     `rose:"assignee,a"`
 }
 
 func (h *App) CreateTask(ctx *ctxx.Context, p CreateTaskParams) (task entity.TaskOverview, err error) {
@@ -167,6 +199,8 @@ func (h *App) CreateTask(ctx *ctxx.Context, p CreateTaskParams) (task entity.Tas
 			Name:        p.Name,
 			Priority:    p.Priority,
 			Description: p.Description,
+			StartDate:   p.StartDate,
+			EndDate:     p.EndDate,
 		},
 	})
 	if err != nil {

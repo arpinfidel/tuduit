@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/arpinfidel/tuduit/pkg/db"
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
-	"gopkg.in/yaml.v3"
 )
 
 var _ = registerTask("SendCheckInMsgs", "* * * * *", func() func() error { return a.SendCheckInMsgs })
@@ -75,7 +73,6 @@ func (a *App) SendCheckInMsgs() error {
 	}
 
 	for _, c := range ci {
-		fmt.Printf(" >> debug >> c: %s\n", func() string { b, _ := json.MarshalIndent(c, "", "  "); return string(b) }())
 		u, ok := usersMap[c.UserID]
 		if !ok {
 			return fmt.Errorf("user not found")
@@ -87,25 +84,15 @@ func (a *App) SendCheckInMsgs() error {
 			return err
 		}
 
-		false_ := false
-		list, err := a.GetTaskList(ctxx.New(ctx, 0), TaskListParams{
-			Page:      1,
-			Size:      10,
-			UserName:  u.Username,
-			Completed: &false_,
-		})
+		res, err := a.GetTaskList(ctxx.New(ctx, c.UserID), TaskListParams{})
 		if err != nil {
 			return err
 		}
 
-		respB, err := yaml.Marshal(list)
-		if err != nil {
-			return err
-		}
-		respStr := string(respB)
+		resp := TaskListToString(res)
 
 		_, err = a.d.WaClient.SendMessage(ctx, types.NewJID(u.WhatsappNumber, types.DefaultUserServer), &waE2E.Message{
-			Conversation: &respStr,
+			Conversation: &resp,
 		})
 		if err != nil {
 			return err

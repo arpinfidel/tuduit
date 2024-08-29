@@ -168,8 +168,9 @@ func (p *Params) BuildPagination() *Params {
 }
 
 type Sort struct {
-	Field string
-	Asc   bool
+	Field      string
+	Asc        bool
+	NullsFirst bool
 }
 
 func (p *Params) BuildSort() *Params {
@@ -183,7 +184,12 @@ func (p *Params) BuildSort() *Params {
 		if !sort.Asc {
 			dir = "DESC"
 		}
-		orderBy = append(orderBy, pq.QuoteIdentifier(sort.Field)+" "+dir)
+
+		nulls := "FIRST"
+		if !sort.NullsFirst {
+			nulls = "LAST"
+		}
+		orderBy = append(orderBy, pq.QuoteIdentifier(sort.Field)+" "+dir+" NULLS "+nulls)
 	}
 
 	q, args, err := sq.Select("*").From("x").OrderBy(orderBy...).ToSql()
