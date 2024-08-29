@@ -360,6 +360,7 @@ func parseTextMsg(flagPrefix string, text string, target any) (Rose, error) {
 
 			if flag != "" {
 				flags[flag] = part
+				part = ""
 			}
 			flag = strings.TrimPrefix(str, flagPrefix)
 			continue
