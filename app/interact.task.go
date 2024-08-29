@@ -150,7 +150,11 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 
 func TaskListToString(res TaskListResults) string {
 	resp := ""
-	for _, t := range res.Tasks {
+	for i, t := range res.Tasks {
+		if i > 0 && t.Priority > res.Tasks[i-1].Priority {
+			resp += "\n"
+		}
+
 		resp += fmt.Sprintf("%d. (P%d) %s\n", t.ID, t.Priority, t.Name)
 		if t.StartDate != "" {
 			resp += fmt.Sprintf("\tStart: %s\n", t.StartDate)
