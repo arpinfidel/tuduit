@@ -54,10 +54,9 @@ func (c *Cron) LogStartEnd(f Job) Job {
 }
 
 func (c *Cron) Wrap(f Job) func() {
+	f = c.LogStartEnd(f)
+	f = c.RecoverPanic(f)
 	return func() {
-		f = c.LogStartEnd(f)
-		f = c.RecoverPanic(f)
-
 		if err := f.Func(); err != nil {
 			c.l.Errorf(err.Error())
 		}
