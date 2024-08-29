@@ -51,9 +51,9 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 
 	where := []db.Where{
 		{
-			Field: "user_id",
-			Op:    db.EqOp,
-			Value: userID,
+			Field: "user_ids",
+			Op:    db.ArrContains,
+			Value: []int64{userID},
 		},
 	}
 
@@ -172,34 +172,37 @@ type CreateTaskParams struct {
 	Description string     `rose:"description,d"`
 	StartDate   *time.Time `rose:"start_date,sd"`
 	EndDate     *time.Time `rose:"end_date,ed"`
-	Assignee    string     `rose:"assignee,a"`
+	Assignees   []string   `rose:"assignees,a"`
 }
 
 func (h *App) CreateTask(ctx *ctxx.Context, p CreateTaskParams) (task entity.TaskOverview, err error) {
-	userID := ctx.UserID
+	userIDs := []int64{ctx.UserID}
 
-	if p.Assignee != "" {
+	if len(p.Assignees) > 0 {
 		user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{
 			Where: []db.Where{
 				{
 					Field: "username",
-					Value: p.Assignee,
+					Value: p.Assignees,
 				},
 			},
 		})
 		if err != nil {
 			return task, err
 		}
-		if len(user) == 0 {
+		if len(user) != len(p.Assignees) {
 			return task, fmt.Errorf("user not found")
 		}
 
-		userID = user[0].ID
+		userIDs = []int64{}
+		for _, u := range user {
+			userIDs = append(userIDs, u.ID)
+		}
 	}
 
 	t, err := h.d.TaskUC.Create(ctx, nil, []entity.Task{
 		{
-			UserID:      userID,
+			UserIDs:     userIDs,
 			Name:        p.Name,
 			Priority:    p.Priority,
 			Description: p.Description,
@@ -222,10 +225,10 @@ type UpdateTaskParams struct {
 	Completed *bool `rose:"completed,c"`
 	Archived  *bool `rose:"archived,a"`
 
-	Name        *string `rose:"name,n"`
-	Priority    *int    `rose:"priority,p"`
-	Description *string `rose:"description,d"`
-	Assignee    *string `rose:"assignee,ass"`
+	Name        *string  `rose:"name,n"`
+	Priority    *int     `rose:"priority,p"`
+	Description *string  `rose:"description,d"`
+	Assignees   []string `rose:"assignees,ass"`
 }
 
 func (h *App) UpdateTask(ctx *ctxx.Context, p UpdateTaskParams) (taskOs []entity.TaskOverview, err error) {
@@ -277,22 +280,26 @@ func (h *App) UpdateTask(ctx *ctxx.Context, p UpdateTaskParams) (taskOs []entity
 			t.Description = *p.Description
 		}
 
-		if p.Assignee != nil {
+		if len(p.Assignees) > 0 {
 			user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{
 				Where: []db.Where{
 					{
 						Field: "username",
-						Value: *p.Assignee,
+						Value: p.Assignees,
 					},
 				},
 			})
 			if err != nil {
 				return taskOs, err
 			}
-			if len(user) == 0 {
+			if len(user) != len(p.Assignees) {
 				return taskOs, fmt.Errorf("user not found")
 			}
-			t.UserID = user[0].ID
+
+			t.UserIDs = []int64{}
+			for _, u := range user {
+				t.UserIDs = append(t.UserIDs, u.ID)
+			}
 		}
 
 		task, err := h.d.TaskUC.Update(ctx, nil, t)

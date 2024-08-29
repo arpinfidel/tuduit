@@ -69,7 +69,7 @@ func (h *App) CreateSchedule(ctx *ctxx.Context, p CreateScheduleParams) (next st
 	sched := s[0]
 
 	template := entity.Task{
-		UserID:         userID,
+		UserIDs:        []int64{userID},
 		TaskScheduleID: sched.ID,
 		Name:           p.Name,
 		Priority:       p.Priority,

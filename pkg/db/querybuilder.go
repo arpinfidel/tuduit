@@ -43,6 +43,7 @@ const (
 	OrOp
 	AndOp
 	RawOp
+	ArrContains
 )
 
 func (w *Where) buildOperator() sq.Sqlizer {
@@ -88,6 +89,8 @@ func (w *Where) buildOperator() sq.Sqlizer {
 		return and(v)
 	case RawOp:
 		return sq.Expr(w.RawSQL)
+	case ArrContains:
+		return sq.Expr(fmt.Sprintf("%s @> ?", w.Field), pq.Array(v))
 	}
 }
 
