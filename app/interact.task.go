@@ -160,8 +160,8 @@ func TaskListToString(res TaskListResults) string {
 		}
 	}
 
-	resp += fmt.Sprintf("Total tasks: %d", res.Total)
-	resp += fmt.Sprintf("Page: %s", res.Page)
+	resp += fmt.Sprintf("Total tasks: %d\n", res.Total)
+	resp += fmt.Sprintf("Page: %s\n", res.Page)
 
 	return resp
 }
@@ -216,7 +216,7 @@ func (h *App) CreateTask(ctx *ctxx.Context, p CreateTaskParams) (task entity.Tas
 }
 
 type UpdateTaskParams struct {
-	ID int `rose:"id,i,required="`
+	IDs []int `rose:"ids,i,required="`
 
 	Started   *bool `rose:"started,s"`
 	Completed *bool `rose:"completed,c"`
@@ -228,75 +228,80 @@ type UpdateTaskParams struct {
 	Assignee    *string `rose:"assignee,ass"`
 }
 
-func (h *App) UpdateTask(ctx *ctxx.Context, p UpdateTaskParams) (taskO entity.TaskOverview, err error) {
-	t, _, err := h.d.TaskUC.GetByIDs(ctx, nil, []int{p.ID}, entity.Pagination{PageSize: 1, Page: 1})
+func (h *App) UpdateTask(ctx *ctxx.Context, p UpdateTaskParams) (taskOs []entity.TaskOverview, err error) {
+	tasks, _, err := h.d.TaskUC.GetByIDs(ctx, nil, p.IDs, entity.Pagination{PageSize: len(p.IDs), Page: 1})
 	if err != nil {
-		return taskO, err
+		return taskOs, err
 	}
-	if len(t) == 0 {
-		return taskO, fmt.Errorf("task not found")
+	if len(tasks) < len(p.IDs) {
+		return taskOs, fmt.Errorf("task not found")
 	}
 
 	now := time.Now()
+	taskOs = []entity.TaskOverview{}
 
-	if p.Started != nil {
-		if *p.Started {
-			t[0].StartedAt = &now
-		} else {
-			t[0].StartedAt = nil
+	for _, t := range tasks {
+		if p.Started != nil {
+			if *p.Started {
+				t.StartedAt = &now
+			} else {
+				t.StartedAt = nil
+			}
 		}
-	}
 
-	if p.Completed != nil {
-		if *p.Completed {
-			t[0].CompletedAt = &now
-		} else {
-			t[0].CompletedAt = nil
+		if p.Completed != nil {
+			if *p.Completed {
+				t.CompletedAt = &now
+			} else {
+				t.CompletedAt = nil
+			}
 		}
-	}
 
-	if p.Archived != nil {
-		if *p.Archived {
-			t[0].ArchivedAt = &now
-		} else {
-			t[0].ArchivedAt = nil
+		if p.Archived != nil {
+			if *p.Archived {
+				t.ArchivedAt = &now
+			} else {
+				t.ArchivedAt = nil
+			}
 		}
-	}
 
-	if p.Name != nil {
-		t[0].Name = *p.Name
-	}
+		if p.Name != nil {
+			t.Name = *p.Name
+		}
 
-	if p.Priority != nil {
-		t[0].Priority = *p.Priority
-	}
+		if p.Priority != nil {
+			t.Priority = *p.Priority
+		}
 
-	if p.Description != nil {
-		t[0].Description = *p.Description
-	}
+		if p.Description != nil {
+			t.Description = *p.Description
+		}
 
-	if p.Assignee != nil {
-		user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{
-			Where: []db.Where{
-				{
-					Field: "username",
-					Value: *p.Assignee,
+		if p.Assignee != nil {
+			user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{
+				Where: []db.Where{
+					{
+						Field: "username",
+						Value: *p.Assignee,
+					},
 				},
-			},
-		})
+			})
+			if err != nil {
+				return taskOs, err
+			}
+			if len(user) == 0 {
+				return taskOs, fmt.Errorf("user not found")
+			}
+			t.UserID = user[0].ID
+		}
+
+		task, err := h.d.TaskUC.Update(ctx, nil, t)
 		if err != nil {
-			return taskO, err
+			return taskOs, err
 		}
-		if len(user) == 0 {
-			return taskO, fmt.Errorf("user not found")
-		}
-		t[0].UserID = user[0].ID
+
+		taskOs = append(taskOs, task.Overview())
 	}
 
-	task, err := h.d.TaskUC.Update(ctx, nil, t[0])
-	if err != nil {
-		return taskO, err
-	}
-
-	return task.Overview(), nil
+	return taskOs, nil
 }

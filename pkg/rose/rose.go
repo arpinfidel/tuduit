@@ -151,7 +151,7 @@ func castType(v string, t reflect.Type) (val any, err error) {
 			}
 			errs = append(errs, err.Error())
 
-			return nil, fmt.Errorf("argument is not a valid time: %s (%s)", v, strings.Join(errs, ", "))
+			return nil, fmt.Errorf("argument is not a valid time: %s\n%s", v, strings.Join(errs, "\n\t"))
 		}
 
 	case reflect.Ptr:
