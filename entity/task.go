@@ -42,7 +42,7 @@ func (t Task) Overview() TaskOverview {
 
 	if t.StartDate != nil {
 		to.StartDate = t.StartDate.Format("2006-01-02 15:04:05")
-		elapsed := time.Since(*t.StartDate).Round(time.Second)
+		elapsed := Duration(time.Since(*t.StartDate).Round(time.Second))
 		if elapsed < 0 {
 			to.StartDate += fmt.Sprintf(" (in %s)", -elapsed)
 		} else {
@@ -51,7 +51,7 @@ func (t Task) Overview() TaskOverview {
 	}
 	if t.EndDate != nil {
 		to.EndDate = t.EndDate.Format("2006-01-02 15:04:05")
-		elapsed := time.Since(*t.EndDate).Round(time.Second)
+		elapsed := Duration(time.Since(*t.EndDate).Round(time.Second))
 		if elapsed < 0 {
 			to.EndDate += fmt.Sprintf(" (in %s)", -elapsed)
 		} else {
