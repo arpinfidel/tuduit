@@ -45,13 +45,17 @@ func (a *App) SendCheckInMsgs() error {
 	if err != nil {
 		return err
 	}
+	if len(ci) == 0 {
+		return nil
+	}
+	a.l.Infof("Found %d checkins", len(ci))
 
-	userIDsMap := map[int64]struct{}{}
+	userIDsSet := map[int64]struct{}{}
 	for _, c := range ci {
-		userIDsMap[c.UserID] = struct{}{}
+		userIDsSet[c.UserID] = struct{}{}
 	}
 	userIDs := []int64{}
-	for u := range userIDsMap {
+	for u := range userIDsSet {
 		userIDs = append(userIDs, u)
 	}
 
@@ -71,6 +75,7 @@ func (a *App) SendCheckInMsgs() error {
 	for _, u := range users {
 		usersMap[u.ID] = u
 	}
+	a.l.Infof("Found %d users", len(users))
 
 	for _, c := range ci {
 		u, ok := usersMap[c.UserID]
