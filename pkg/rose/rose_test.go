@@ -3,6 +3,8 @@ package rose
 import (
 	"reflect"
 	"testing"
+
+	"github.com/arpinfidel/tuduit/entity"
 )
 
 func Test_parseArgs(t *testing.T) {
@@ -171,6 +173,50 @@ func Test_help(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("help() = %#v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_castType(t *testing.T) {
+	type args struct {
+		v string
+		t reflect.Type
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantVal any
+		wantErr bool
+	}{
+		{
+			name: "base 36",
+			args: args{
+				v: "1",
+				t: reflect.TypeOf(entity.Base36[uint64]{V: 0}),
+			},
+			wantVal: &entity.Base36[uint64]{V: 1},
+			wantErr: false,
+		},
+		{
+			name: "base 36 slice",
+			args: args{
+				v: "1,2,3",
+				t: reflect.TypeOf([]entity.Base36[uint64]{}),
+			},
+			wantVal: []entity.Base36[uint64]{{V: 1}, {V: 2}, {V: 3}},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotVal, err := castType(tt.args.v, tt.args.t)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("castType() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotVal, tt.wantVal) {
+				t.Errorf("castType() = %v, want %v", gotVal, tt.wantVal)
 			}
 		})
 	}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arpinfidel/tuduit/entity"
 	str2duration "github.com/xhit/go-str2duration/v2"
 )
 
@@ -123,6 +124,18 @@ func castType(v string, t reflect.Type) (val any, err error) {
 		return b, nil
 	// case time
 	case reflect.Struct:
+		pt := t
+		if t.Kind() != reflect.Ptr {
+			pt = reflect.PtrTo(t)
+		}
+		if pt.Implements(reflect.TypeOf(new(entity.Base36Parser)).Elem()) {
+			i := reflect.New(t).Interface()
+			err := i.(entity.Base36Parser).ParseBase36(v)
+			if err == nil {
+				return reflect.ValueOf(i).Elem().Interface(), nil
+			}
+		}
+
 		switch t.String() {
 		default:
 			i, err := castJSON(v, t)
@@ -168,14 +181,24 @@ func castType(v string, t reflect.Type) (val any, err error) {
 		if strings.HasPrefix(v, "[") && strings.HasSuffix(v, "]") {
 			return castJSON(v, t)
 		}
+
+		split := strings.Split(v, ",")
 		switch t.Elem().Kind() {
 		default:
-			return nil, fmt.Errorf("argument is not a valid slice: %s", v)
+			s := reflect.MakeSlice(t, 0, 0)
+			for _, v := range split {
+				i, err := castType(v, t.Elem())
+				if err != nil {
+					return nil, err
+				}
+				s = reflect.Append(s, reflect.ValueOf(i))
+			}
+			return s.Interface(), nil
 		case reflect.String:
-			return strings.Split(v, ","), nil
+			return split, nil
 		case reflect.Int:
 			i := []int{}
-			s := strings.Split(v, ",")
+			s := split
 			for _, v := range s {
 				iv, err := strconv.Atoi(v)
 				if err != nil {

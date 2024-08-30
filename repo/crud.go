@@ -17,7 +17,7 @@ type IStdRepo[T any] interface {
 	Update(ctx context.Context, dbTx *sqlx.Tx, newData T) (data T, err error)
 	Delete(ctx context.Context, dbTx *sqlx.Tx, id string) (err error)
 	Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (data []T, total int, err error)
-	GetByIDs(ctx context.Context, dbTx *sqlx.Tx, ids []int, pg entity.Pagination) (data []T, total int, err error)
+	GetByIDs(ctx context.Context, dbTx *sqlx.Tx, ids []int64, pg entity.Pagination) (data []T, total int, err error)
 }
 
 type StdFields interface {
@@ -239,7 +239,7 @@ func (c *StdCRUD[T]) Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (d
 	return data, total, nil
 }
 
-func (c *StdCRUD[T]) GetByIDs(ctx context.Context, dbTx *sqlx.Tx, ids []int, pg entity.Pagination) (data []T, total int, err error) {
+func (c *StdCRUD[T]) GetByIDs(ctx context.Context, dbTx *sqlx.Tx, ids []int64, pg entity.Pagination) (data []T, total int, err error) {
 	defer trace.Default(&ctx, &err)()
 
 	data, total, err = c.Get(ctx, dbTx, db.Params{

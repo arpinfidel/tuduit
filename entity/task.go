@@ -25,7 +25,7 @@ type Task struct {
 
 func (t Task) Overview() TaskOverview {
 	to := TaskOverview{
-		ID:          t.ID,
+		ID:          NewBase36(uint64(t.ID)),
 		Name:        t.Name,
 		Priority:    t.Priority,
 		Description: t.Description,
@@ -63,7 +63,7 @@ func (t Task) Overview() TaskOverview {
 }
 
 type TaskOverview struct {
-	ID int64 `db:"id" json:"id"`
+	ID Base36[uint64] `db:"id" json:"id"`
 
 	Name        string `db:"name"        json:"name"                 yaml:"name"`
 	Priority    int    `db:"priority"    json:"priority"             yaml:"priority"`

@@ -155,7 +155,7 @@ func TaskListToString(res TaskListResults) string {
 			resp += "\n"
 		}
 
-		resp += fmt.Sprintf("%d. (P%d) %s\n", t.ID, t.Priority, t.Name)
+		resp += fmt.Sprintf("%s. (P%d) %s\n", t.ID, t.Priority, t.Name)
 		if t.StartDate != "" {
 			resp += fmt.Sprintf("\tStart: %s\n", t.StartDate)
 		}
@@ -223,7 +223,7 @@ func (h *App) CreateTask(ctx *ctxx.Context, p CreateTaskParams) (task entity.Tas
 }
 
 type UpdateTaskParams struct {
-	IDs []int `rose:"ids,i,required="`
+	IDs []entity.Base36[uint64] `rose:"ids,i,required="`
 
 	Started   *bool `rose:"started,s"`
 	Completed *bool `rose:"completed,c"`
@@ -236,7 +236,11 @@ type UpdateTaskParams struct {
 }
 
 func (h *App) UpdateTask(ctx *ctxx.Context, p UpdateTaskParams) (taskOs []entity.TaskOverview, err error) {
-	tasks, _, err := h.d.TaskUC.GetByIDs(ctx, nil, p.IDs, entity.Pagination{PageSize: len(p.IDs), Page: 1})
+	ids := []int64{}
+	for _, id := range p.IDs {
+		ids = append(ids, int64(id.V))
+	}
+	tasks, _, err := h.d.TaskUC.GetByIDs(ctx, nil, ids, entity.Pagination{PageSize: len(p.IDs), Page: 1})
 	if err != nil {
 		return taskOs, err
 	}

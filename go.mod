@@ -54,4 +54,5 @@ require (
 	github.com/minio/minio-go/v7 v7.0.59
 	github.com/urfave/cli/v2 v2.27.2
 	go.mau.fi/whatsmeow v0.0.0-20240716084021-eb41d1f09552
+	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
 )
