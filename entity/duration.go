@@ -10,7 +10,7 @@ var _ fmt.Stringer = Duration(0)
 
 type Duration time.Duration
 
-func (d Duration) String() string {
+func (d Duration) Format(s fmt.State, v rune) {
 	type unit struct {
 		name string
 		val  time.Duration
@@ -25,15 +25,37 @@ func (d Duration) String() string {
 		{"s", time.Second},
 	}
 
-	var parts []string
-	for _, u := range units {
-		dd := time.Duration(d)
-		if dd > u.val {
+	switch v {
+	default:
+		type hideMethods Duration
+		type Duration hideMethods
+		fmtDirective := fmt.FormatString(s, v)
+		fmt.Fprint(s, fmtDirective, Duration(d))
+
+	case 's':
+		var parts []string
+		i := 0
+		for _, u := range units {
+			dd := time.Duration(d)
+			if dd < u.val {
+				continue
+			}
+
 			parts = append(parts, fmt.Sprintf("%d%s", dd/u.val, u.name))
 			dd = dd % u.val
 			d = Duration(dd)
-		}
-	}
 
-	return strings.Join(parts, " ")
+			i++
+			w, ok := s.Width()
+			if ok && i+1 > w {
+				break
+			}
+		}
+
+		fmt.Fprint(s, strings.Join(parts, " "))
+	}
+}
+
+func (d Duration) String() string {
+	return fmt.Sprintf("%s", d)
 }
