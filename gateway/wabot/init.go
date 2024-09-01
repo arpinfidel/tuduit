@@ -52,22 +52,17 @@ func wrapHandler[T any, U any](f func(ctx *ctxx.Context, req T) (resp U, err err
 		Help bool `rose:"help,h"`
 	}
 	return func(ctx *ctxx.Context, text string) (string, error) {
-
 		req := help[T]{}
 		r, err := rose.NewParser(prefix).ParseTextMsg(text, &req)
-
 		if err != nil {
-
 			return "internal error", err
 		}
 
 		if req.Help {
-
 			return rose.Help(req.T)
 		}
 
 		if len(r.Errors) > 0 {
-
 			errStrings := []string{}
 			for _, e := range r.Errors {
 				errStrings = append(errStrings, e.Error())
@@ -93,7 +88,7 @@ func wrapHandler[T any, U any](f func(ctx *ctxx.Context, req T) (resp U, err err
 			return "", err
 		}
 
-		return string(respStr), nil
+		return "```\n" + string(respStr) + "\n```", nil
 	}
 }
 

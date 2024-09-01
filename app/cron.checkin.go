@@ -82,12 +82,6 @@ func (a *App) SendCheckInMsgs() error {
 			return fmt.Errorf("user not found")
 		}
 
-		c.LastSent = time.Now()
-		_, err = a.d.CheckinUC.Update(ctx, nil, c)
-		if err != nil {
-			return err
-		}
-
 		res, err := a.GetTaskList(ctxx.New(ctx, c.UserID), TaskListParams{
 			Size: 25,
 		})
@@ -97,9 +91,17 @@ func (a *App) SendCheckInMsgs() error {
 
 		resp := TaskListToString(res)
 
+		resp = "```\n" + resp + "\n```"
+
 		_, err = a.d.WaClient.SendMessage(ctx, types.NewJID(u.WhatsappNumber, types.DefaultUserServer), &waE2E.Message{
 			Conversation: &resp,
 		})
+		if err != nil {
+			return err
+		}
+
+		c.LastSent = time.Now()
+		_, err = a.d.CheckinUC.Update(ctx, nil, c)
 		if err != nil {
 			return err
 		}
