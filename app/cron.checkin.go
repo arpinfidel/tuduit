@@ -16,7 +16,6 @@ var _ = registerTask("SendCheckInMsgs", "* * * * *", func() func() error { retur
 
 func (a *App) SendCheckInMsgs() error {
 	ctx := context.Background()
-
 	now := time.Now().UTC()
 
 	ci, _, err := a.d.CheckinUC.Get(ctx, nil, db.Params{
@@ -45,10 +44,10 @@ func (a *App) SendCheckInMsgs() error {
 	if err != nil {
 		return err
 	}
+	a.l.Infof("Found %d checkins", len(ci))
 	if len(ci) == 0 {
 		return nil
 	}
-	a.l.Infof("Found %d checkins", len(ci))
 
 	userIDsSet := map[int64]struct{}{}
 	for _, c := range ci {
@@ -89,7 +88,9 @@ func (a *App) SendCheckInMsgs() error {
 			return err
 		}
 
-		res, err := a.GetTaskList(ctxx.New(ctx, c.UserID), TaskListParams{})
+		res, err := a.GetTaskList(ctxx.New(ctx, c.UserID), TaskListParams{
+			Size: 25,
+		})
 		if err != nil {
 			return err
 		}
