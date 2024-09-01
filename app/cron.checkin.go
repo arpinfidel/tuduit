@@ -82,9 +82,12 @@ func (a *App) SendCheckInMsgs() error {
 			return fmt.Errorf("user not found")
 		}
 
+		false_ := false
 		res, err := a.GetTaskList(ctxx.New(ctx, c.UserID), TaskListParams{
-			Page: 1,
-			Size: 25,
+			Page:      1,
+			Size:      25,
+			Completed: &false_,
+			Archived:  &false_,
 		})
 		if err != nil {
 			return err
