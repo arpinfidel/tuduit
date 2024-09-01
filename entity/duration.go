@@ -35,5 +35,5 @@ func (d Duration) String() string {
 		}
 	}
 
-	return strings.Join(parts, "")
+	return strings.Join(parts, " ")
 }

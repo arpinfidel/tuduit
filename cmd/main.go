@@ -45,7 +45,7 @@ func main() {
 	time.Local = time.UTC
 
 	zapCfg := zap.NewDevelopmentConfig()
-	zapCfg.Level.SetLevel(zap.DebugLevel)
+	// zapCfg.Level.SetLevel(zap.DebugLevel)
 	zapCfg.Level.SetLevel(zap.WarnLevel)
 	l, err := zapCfg.Build()
 	if err != nil {
@@ -158,6 +158,7 @@ func main() {
 	})
 
 	go server.Start()
+	main.l.Infoln("server started")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
