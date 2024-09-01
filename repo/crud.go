@@ -8,7 +8,7 @@ import (
 
 	"github.com/arpinfidel/tuduit/entity"
 	"github.com/arpinfidel/tuduit/pkg/db"
-	"github.com/arpinfidel/tuduit/pkg/trace"
+	"github.com/arpinfidel/tuduit/pkg/errs"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -134,7 +134,7 @@ func (c *StdCRUD[T]) getSetString() string {
 }
 
 func (c *StdCRUD[T]) Create(ctx context.Context, dbTx *sqlx.Tx, newData []T) (data []T, err error) {
-	defer trace.Default(&ctx, &err)()
+	defer errs.DeferTrace(&err)()
 
 	var querier db.Querier = dbTx
 	if dbTx == nil {
@@ -161,7 +161,7 @@ func (c *StdCRUD[T]) Create(ctx context.Context, dbTx *sqlx.Tx, newData []T) (da
 }
 
 func (c *StdCRUD[T]) Update(ctx context.Context, dbTx *sqlx.Tx, newData T) (data T, err error) {
-	defer trace.Default(&ctx, &err)()
+	defer errs.DeferTrace(&err)()
 
 	var querier db.Querier = dbTx
 	if dbTx == nil {
@@ -185,7 +185,7 @@ func (c *StdCRUD[T]) Update(ctx context.Context, dbTx *sqlx.Tx, newData T) (data
 }
 
 func (c *StdCRUD[T]) Delete(ctx context.Context, dbTx *sqlx.Tx, id string) (err error) {
-	defer trace.Default(&ctx, &err)()
+	defer errs.DeferTrace(&err)()
 
 	var querier db.Querier = dbTx
 	if dbTx == nil {
@@ -204,7 +204,7 @@ func (c *StdCRUD[T]) Delete(ctx context.Context, dbTx *sqlx.Tx, id string) (err 
 }
 
 func (c *StdCRUD[T]) Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (data []T, total int, err error) {
-	defer trace.Default(&ctx, &err)()
+	defer errs.DeferTrace(&err)()
 
 	var querier db.Querier = dbTx
 	if dbTx == nil {
@@ -240,7 +240,7 @@ func (c *StdCRUD[T]) Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (d
 }
 
 func (c *StdCRUD[T]) GetByIDs(ctx context.Context, dbTx *sqlx.Tx, ids []int64, pg entity.Pagination) (data []T, total int, err error) {
-	defer trace.Default(&ctx, &err)()
+	defer errs.DeferTrace(&err)()
 
 	data, total, err = c.Get(ctx, dbTx, db.Params{
 		Where: []db.Where{

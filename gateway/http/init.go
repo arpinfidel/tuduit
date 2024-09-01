@@ -29,6 +29,4 @@ func (s *Server) Start(deps Dependencies) (err error) {
 }
 
 func (s *Server) v1(r chi.Router) {
-	r.Get("/{id}", ParseJSON(s.Handler.getTaskByID))
-	r.Post("/{id}", ParseJSON(s.Handler.newTask))
 }

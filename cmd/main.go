@@ -21,7 +21,6 @@ import (
 	scheduleuc "github.com/arpinfidel/tuduit/usecase/schedule"
 	taskuc "github.com/arpinfidel/tuduit/usecase/task"
 	useruc "github.com/arpinfidel/tuduit/usecase/user"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mdp/qrterminal"
 	"github.com/minio/minio-go/v7"
@@ -36,8 +35,7 @@ type Start struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	l  *log.Logger
-	db *sqlx.DB
+	l *log.Logger
 }
 
 func main() {
@@ -46,7 +44,10 @@ func main() {
 	main.ctx, main.cancel = context.WithCancel(context.Background())
 	time.Local = time.UTC
 
-	l, err := zap.NewDevelopment()
+	zapCfg := zap.NewDevelopmentConfig()
+	zapCfg.Level.SetLevel(zap.DebugLevel)
+	zapCfg.Level.SetLevel(zap.WarnLevel)
+	l, err := zapCfg.Build()
 	if err != nil {
 		l.Sugar().Fatalf("zap.NewDevelopment: %v", err)
 	}

@@ -83,6 +83,7 @@ func (a *App) SendCheckInMsgs() error {
 		}
 
 		res, err := a.GetTaskList(ctxx.New(ctx, c.UserID), TaskListParams{
+			Page: 1,
 			Size: 25,
 		})
 		if err != nil {

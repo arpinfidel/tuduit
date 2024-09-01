@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/arpinfidel/tuduit/pkg/db"
-	"github.com/arpinfidel/tuduit/pkg/trace"
+	"github.com/arpinfidel/tuduit/pkg/errs"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -17,7 +17,7 @@ func NewDBConnection(db *db.DB) *DBConnection {
 }
 
 func (r *DBConnection) StartTx(ctx context.Context, f func(ctx context.Context, tx *sqlx.Tx, data any) (any, error)) (wf func(ctx context.Context, data any) (any, error), commit, rollback func() error, err error) {
-	defer trace.Default(&ctx, &err)()
+	defer errs.DeferTrace(&err)()
 
 	dbTx, err := r.db.GetMaster().BeginTxx(ctx, nil)
 	if err != nil {
