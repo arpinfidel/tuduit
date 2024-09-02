@@ -9,15 +9,18 @@ import (
 	"time"
 
 	"github.com/arpinfidel/tuduit/entity"
+	"github.com/arpinfidel/tuduit/pkg/ctxx"
 	str2duration "github.com/xhit/go-str2duration/v2"
 )
 
 type Parser struct {
+	ctx           *ctxx.Context
 	textMsgPrefix string
 }
 
-func NewParser(textMsgPrefix string) *Parser {
+func NewParser(ctx *ctxx.Context, textMsgPrefix string) *Parser {
 	return &Parser{
+		ctx:           ctx,
 		textMsgPrefix: textMsgPrefix,
 	}
 }
@@ -28,15 +31,15 @@ type Rose struct {
 }
 
 func (p *Parser) ParseArgs(args []string, flags map[string]string, target any) (Rose, error) {
-	return parseArgs(args, flags, target)
+	return p.parseArgs(args, flags, target)
 }
 
 func (p *Parser) ParseJSON(jsonBytes []byte, target any) (Rose, error) {
-	return parseJSON(jsonBytes, target)
+	return p.parseJSON(jsonBytes, target)
 }
 
 func (p *Parser) ParseTextMsg(text string, target any) (Rose, error) {
-	return parseTextMsg(p.textMsgPrefix, text, target)
+	return p.parseTextMsg(p.textMsgPrefix, text, target)
 }
 
 func Help(target any) (string, error) {
@@ -66,7 +69,11 @@ func castJSON(v string, t reflect.Type) (i any, err error) {
 	return i, nil
 }
 
-func castType(v string, t reflect.Type) (val any, err error) {
+func (p *Parser) setTimezone(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), p.ctx.User.CreatedAt.Location())
+}
+
+func (p *Parser) castType(v string, t reflect.Type) (val any, err error) {
 	switch t.Kind() {
 	default:
 		i, err := castJSON(v, t)
@@ -148,19 +155,19 @@ func castType(v string, t reflect.Type) (val any, err error) {
 			errs := []string{}
 			i, err := time.Parse("2006-01-02 15:04:05", v)
 			if err == nil {
-				return i, nil
+				return p.setTimezone(i), nil
 			}
 			errs = append(errs, err.Error())
 
 			i, err = time.Parse("2006-01-02 15:04", v)
 			if err == nil {
-				return i, nil
+				return p.setTimezone(i), nil
 			}
 			errs = append(errs, err.Error())
 
 			i, err = time.Parse("2006-01-02", v)
 			if err == nil {
-				return i, nil
+				return p.setTimezone(i), nil
 			}
 			errs = append(errs, err.Error())
 
@@ -168,7 +175,7 @@ func castType(v string, t reflect.Type) (val any, err error) {
 		}
 
 	case reflect.Ptr:
-		v, err := castType(v, t.Elem())
+		v, err := p.castType(v, t.Elem())
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +194,7 @@ func castType(v string, t reflect.Type) (val any, err error) {
 		default:
 			s := reflect.MakeSlice(t, 0, 0)
 			for _, v := range split {
-				i, err := castType(v, t.Elem())
+				i, err := p.castType(v, t.Elem())
 				if err != nil {
 					return nil, err
 				}
@@ -211,7 +218,7 @@ func castType(v string, t reflect.Type) (val any, err error) {
 	}
 }
 
-func parseArgs(args []string, flags map[string]string, target any) (rose Rose, err error) {
+func (p *Parser) parseArgs(args []string, flags map[string]string, target any) (rose Rose, err error) {
 	if reflect.TypeOf(target).Kind() != reflect.Pointer {
 		return rose, fmt.Errorf("target must be a pointer")
 	}
@@ -287,7 +294,7 @@ func parseArgs(args []string, flags map[string]string, target any) (rose Rose, e
 		set := false
 
 		if i-flattened < len(args) {
-			val, err := castType(args[i-flattened], typ.Type)
+			val, err := p.castType(args[i-flattened], typ.Type)
 			if err != nil {
 				rose.Valid = false
 				rose.Errors = append(rose.Errors, err)
@@ -304,7 +311,7 @@ func parseArgs(args []string, flags map[string]string, target any) (rose Rose, e
 				continue
 			}
 
-			v, err := castType(val, typ.Type)
+			v, err := p.castType(val, typ.Type)
 			if err != nil {
 				rose.Valid = false
 				rose.Errors = append(rose.Errors, err)
@@ -317,7 +324,7 @@ func parseArgs(args []string, flags map[string]string, target any) (rose Rose, e
 		}
 
 		if !set && field.Default != "" {
-			v, err := castType(field.Default, typ.Type)
+			v, err := p.castType(field.Default, typ.Type)
 			if err != nil {
 
 				return rose, err
@@ -338,7 +345,7 @@ func parseArgs(args []string, flags map[string]string, target any) (rose Rose, e
 	return rose, nil
 }
 
-func parseJSON(jsonBytes []byte, target any) (rose Rose, err error) {
+func (p *Parser) parseJSON(jsonBytes []byte, target any) (rose Rose, err error) {
 	j := map[string]json.RawMessage{}
 
 	err = json.Unmarshal(jsonBytes, &j)
@@ -355,14 +362,14 @@ func parseJSON(jsonBytes []byte, target any) (rose Rose, err error) {
 		flags[k] = v
 	}
 
-	return parseArgs(nil, flags, target)
+	return p.parseArgs(nil, flags, target)
 }
 
 // parseTextMsg parses a text message into a struct
 // first line is treated as args and inline flags
 // each subsquent line that starts with flagPrefix is treated as a flag
 // keep reading flag until the next line that starts with flagPrefix or end of message
-func parseTextMsg(flagPrefix string, text string, target any) (Rose, error) {
+func (p *Parser) parseTextMsg(flagPrefix string, text string, target any) (Rose, error) {
 	args := []string{}
 	flags := map[string]string{}
 
@@ -420,7 +427,7 @@ func parseTextMsg(flagPrefix string, text string, target any) (Rose, error) {
 	}
 	flags[flag] = part
 
-	rose, err := parseArgs(args, flags, target)
+	rose, err := p.parseArgs(args, flags, target)
 	if err != nil {
 
 		return rose, err
@@ -518,4 +525,71 @@ func help(target any) (string, error) {
 	}
 
 	return res, nil
+}
+
+var timeType = reflect.TypeOf(time.Time{})
+
+func ChangeTimezone(v any, loc *time.Location) (res any) {
+	if v == nil {
+		return nil
+	}
+
+	if reflect.TypeOf(v).Kind() != reflect.Ptr {
+		panic("not ptr")
+	}
+
+	vv := changeTimezone(reflect.ValueOf(v).Elem(), loc)
+	reflect.ValueOf(v).Elem().Set(reflect.ValueOf(vv))
+
+	return vv
+}
+
+func changeTimezone(val reflect.Value, loc *time.Location) (res any) {
+	fmt.Printf(" >> debug >> val.Type(): %#v\n", val.Type().String())
+	fmt.Printf(" >> debug >> val.Interface(): %#v\n", val.Interface())
+
+	if val.Interface() == nil {
+		return nil
+	}
+
+	if val.Type() == timeType {
+		t := val.Interface().(time.Time).In(loc)
+		return t
+	}
+
+	switch val.Kind() {
+	default:
+		return val.Interface()
+
+	case reflect.Struct:
+		for i := 0; i < val.NumField(); i++ {
+			field := val.Field(i)
+			fmt.Printf(" >> debug >> val.Field(i).Interface(): %#v\n", field.Interface())
+			t := changeTimezone(field, loc)
+			fmt.Printf(" >> debug >> t: %#v\n", t)
+			if field.Kind() == reflect.Ptr && field.IsNil() {
+				continue
+			}
+			field.Set(reflect.ValueOf(t))
+		}
+		return val.Interface()
+
+	case reflect.Ptr:
+		if val.IsNil() {
+			return nil
+		}
+
+		t := changeTimezone(val.Elem(), loc)
+		tPtr := reflect.New(val.Type().Elem())
+		tPtr.Elem().Set(reflect.ValueOf(t))
+		val.Set(reflect.ValueOf(tPtr.Interface()))
+		return val.Interface()
+
+	case reflect.Slice:
+		for i := 0; i < val.Len(); i++ {
+			t := changeTimezone(val.Index(i), loc)
+			val.Index(i).Set(reflect.ValueOf(t))
+		}
+		return val.Interface()
+	}
 }

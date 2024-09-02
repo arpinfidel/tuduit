@@ -13,4 +13,3 @@ create table if not exists "mst_user" (
 	, username text not null
 	, whatsapp_number text not null
 );
-

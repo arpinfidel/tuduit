@@ -7,6 +7,7 @@ import (
 	"github.com/arpinfidel/tuduit/entity"
 	"github.com/arpinfidel/tuduit/pkg/ctxx"
 	"github.com/arpinfidel/tuduit/pkg/db"
+	"github.com/arpinfidel/tuduit/pkg/rose"
 )
 
 type TaskListParams struct {
@@ -28,7 +29,7 @@ type TaskListResults struct {
 }
 
 func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResults, err error) {
-	userID := ctx.UserID
+	userID := ctx.User.ID
 
 	if p.UserName != "" {
 		user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{
@@ -138,6 +139,8 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 		return res, err
 	}
 
+	rose.ChangeTimezone(&tasks, ctx.User.TimeZone)
+
 	for _, task := range tasks {
 		res.Tasks = append(res.Tasks, task.Overview())
 	}
@@ -148,7 +151,7 @@ func (h *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 	return res, nil
 }
 
-func TaskListToString(res TaskListResults) string {
+func TaskListToString(ctx *ctxx.Context, res TaskListResults) string {
 	resp := ""
 	for i, t := range res.Tasks {
 		if i > 0 && t.Priority > res.Tasks[i-1].Priority {
@@ -180,7 +183,7 @@ type CreateTaskParams struct {
 }
 
 func (h *App) CreateTask(ctx *ctxx.Context, p CreateTaskParams) (task entity.TaskOverview, err error) {
-	userIDs := []int64{ctx.UserID}
+	userIDs := []int64{ctx.User.ID}
 
 	if len(p.Assignees) > 0 {
 		user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{

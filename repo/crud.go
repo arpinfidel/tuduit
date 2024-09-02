@@ -9,6 +9,7 @@ import (
 	"github.com/arpinfidel/tuduit/entity"
 	"github.com/arpinfidel/tuduit/pkg/db"
 	"github.com/arpinfidel/tuduit/pkg/errs"
+	"github.com/arpinfidel/tuduit/pkg/log"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -26,6 +27,7 @@ type StdFields interface {
 
 type StdCRUD[T StdFields] struct {
 	db *db.DB
+	l  *log.Logger
 
 	tableName string
 
@@ -36,9 +38,10 @@ type StdCRUD[T StdFields] struct {
 	setString          string
 }
 
-func NewStdCRUD[T StdFields](db *db.DB, tableName string) *StdCRUD[T] {
+func NewStdCRUD[T StdFields](db *db.DB, logger *log.Logger, tableName string) *StdCRUD[T] {
 	return &StdCRUD[T]{
 		db:        db,
+		l:         logger,
 		tableName: tableName,
 	}
 }
@@ -62,9 +65,8 @@ func (c *StdCRUD[T]) getFields() []string {
 		field := elem.Field(i)
 		tag := string(field.Tag.Get("db"))
 		if field.Type == reflect.TypeOf(entity.StdFields{}) {
-
 			c.fields = append(c.fields, c.getStdFields()...)
-		} else {
+		} else if tag != "" && tag != "-" {
 			c.fields = append(c.fields, tag)
 		}
 	}
@@ -133,8 +135,19 @@ func (c *StdCRUD[T]) getSetString() string {
 	return c.setString
 }
 
+func (c *StdCRUD[T]) printQ(q *string, err *error) func() {
+	return func() {
+		if err == nil || *err == nil {
+			return
+		}
+		c.l.Debugln(*q)
+	}
+}
+
 func (c *StdCRUD[T]) Create(ctx context.Context, dbTx *sqlx.Tx, newData []T) (data []T, err error) {
 	defer errs.DeferTrace(&err)()
+	var q string
+	defer c.printQ(&q, &err)()
 
 	var querier db.Querier = dbTx
 	if dbTx == nil {
@@ -144,7 +157,7 @@ func (c *StdCRUD[T]) Create(ctx context.Context, dbTx *sqlx.Tx, newData []T) (da
 	fields := c.getFieldsString()
 	placeHolders := c.getPlaceholdersString()
 
-	q := `INSERT INTO %s (%s) VALUES (%s) RETURNING id,%s`
+	q = `INSERT INTO %s (%s) VALUES (%s) RETURNING id,%s`
 	q = fmt.Sprintf(q, c.tableName, fields, placeHolders, fields)
 
 	q, arg, err := sqlx.Named(q, newData)
@@ -162,13 +175,15 @@ func (c *StdCRUD[T]) Create(ctx context.Context, dbTx *sqlx.Tx, newData []T) (da
 
 func (c *StdCRUD[T]) Update(ctx context.Context, dbTx *sqlx.Tx, newData T) (data T, err error) {
 	defer errs.DeferTrace(&err)()
+	var q string
+	defer c.printQ(&q, &err)()
 
 	var querier db.Querier = dbTx
 	if dbTx == nil {
 		querier = c.db.GetMaster()
 	}
 
-	q := `UPDATE %s SET %s WHERE id=:id RETURNING id,%s`
+	q = `UPDATE %s SET %s WHERE id=:id RETURNING id,%s`
 	q = fmt.Sprintf(q, c.tableName, c.getSetString(), c.getFieldsString())
 
 	q, arg, err := sqlx.Named(q, newData)
@@ -186,13 +201,15 @@ func (c *StdCRUD[T]) Update(ctx context.Context, dbTx *sqlx.Tx, newData T) (data
 
 func (c *StdCRUD[T]) Delete(ctx context.Context, dbTx *sqlx.Tx, id string) (err error) {
 	defer errs.DeferTrace(&err)()
+	var q string
+	defer c.printQ(&q, &err)()
 
 	var querier db.Querier = dbTx
 	if dbTx == nil {
 		querier = c.db.GetMaster()
 	}
 
-	q := `UPDATE %s SET deleted_at=now() WHERE id = ?`
+	q = `UPDATE %s SET deleted_at=now() WHERE id = ?`
 	q = fmt.Sprintf(q, c.tableName)
 
 	_, err = querier.ExecContext(ctx, c.db.Rebind(q), id)
@@ -205,13 +222,15 @@ func (c *StdCRUD[T]) Delete(ctx context.Context, dbTx *sqlx.Tx, id string) (err 
 
 func (c *StdCRUD[T]) Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (data []T, total int, err error) {
 	defer errs.DeferTrace(&err)()
+	var q string
+	defer c.printQ(&q, &err)()
 
 	var querier db.Querier = dbTx
 	if dbTx == nil {
 		querier = c.db.GetSlave()
 	}
 
-	q := `SELECT id,%s FROM %s`
+	q = `SELECT id,%s FROM %s`
 	q = fmt.Sprintf(q, c.getFieldsString(), c.tableName)
 
 	countQ := `SELECT COUNT(1) FROM %s`

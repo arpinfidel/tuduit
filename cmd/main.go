@@ -111,16 +111,20 @@ func main() {
 	// }
 
 	taskRepo := taskrepo.New(taskrepo.Dependencies{
-		DB: db,
+		DB:     db,
+		Logger: main.l,
 	})
 	scheduleRepo := schedulerepo.New(schedulerepo.Dependencies{
-		DB: db,
+		DB:     db,
+		Logger: main.l,
 	})
 	userRepo := userrepo.New(userrepo.Dependencies{
-		DB: db,
+		DB:     db,
+		Logger: main.l,
 	})
 	checkinRepo := checkinrepo.New(checkinrepo.Dependencies{
-		DB: db,
+		DB:     db,
+		Logger: main.l,
 	})
 
 	taskUC := taskuc.New(taskuc.Dependencies{

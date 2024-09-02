@@ -3,19 +3,15 @@ package ctxx
 import (
 	"context"
 
-	"github.com/arpinfidel/tuduit/pkg/rose"
+	"github.com/arpinfidel/tuduit/entity"
 	"go.mau.fi/whatsmeow/types/events"
 )
 
 type Context struct {
 	context.Context
-
-	UserID int64
-	Body   Body
+	User entity.User
 
 	WAEvent *events.Message
-
-	response chan any
 }
 
 type BodyType string
@@ -31,16 +27,18 @@ type Body struct {
 
 type Key string
 
-func New(ct context.Context, userID int64) *Context {
+func New(ct context.Context, user entity.User) *Context {
 	c := &Context{
 		Context: ct,
-		UserID:  userID,
-
-		response: make(chan any, 2),
+		User:    user,
 	}
 	ct = context.WithValue(ct, Key("context"), c)
 	c.Context = ct
 	return c
+}
+
+func Background() *Context {
+	return New(context.Background(), entity.User{})
 }
 
 func GetContext(ct context.Context) *Context {
@@ -52,29 +50,4 @@ func WithWhatsappMessage(ct context.Context, msg *events.Message) *Context {
 	c := GetContext(ct)
 	c.WAEvent = msg
 	return c
-}
-
-func (c *Context) SetBody(bodyType BodyType, body string) {
-	c.Body = Body{
-		Type: bodyType,
-		Text: body,
-	}
-}
-
-func (c *Context) Bind(target any) (rose.Rose, error) {
-	parser := rose.NewParser(".")
-	switch c.Body.Type {
-	default:
-		return rose.Rose{}, nil
-	case BodyTypeTextMsg:
-		return parser.ParseTextMsg(c.Body.Text, target)
-	}
-}
-
-func (c *Context) AwaitResponse() <-chan any {
-	return c.response
-}
-
-func (c *Context) Respond(resp any) {
-	c.response <- resp
 }

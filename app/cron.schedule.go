@@ -58,7 +58,7 @@ func (a *App) CreateScheduledTasks() error {
 		s := &scheds[i]
 		s.NextSchedule = s.MustParseSchedule().MustNext(s.NextSchedule)
 		mapNextScheds[s.ID] = *s
-		_, err = a.d.ScheduleUC.Update(ctxx.New(ctx, 0), nil, *s)
+		_, err = a.d.ScheduleUC.Update(ctxx.New(ctx, entity.User{}), nil, *s)
 		if err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ func (a *App) CreateScheduledTasks() error {
 		tasks = append(tasks, t)
 	}
 
-	_, err = a.d.TaskUC.Create(ctxx.New(ctx, 0), nil, tasks)
+	_, err = a.d.TaskUC.Create(ctxx.New(ctx, entity.User{}), nil, tasks)
 	if err != nil {
 		return err
 	}

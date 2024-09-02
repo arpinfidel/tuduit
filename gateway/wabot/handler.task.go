@@ -11,7 +11,7 @@ func (s *WaBot) HandlerTaskList(ctx *ctxx.Context, req app.TaskListParams) (resp
 		return "", err
 	}
 
-	resp = app.TaskListToString(res)
+	resp = app.TaskListToString(ctx, res)
 
 	return resp, nil
 }

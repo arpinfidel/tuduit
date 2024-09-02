@@ -22,8 +22,7 @@ type CreateScheduleParams struct {
 }
 
 func (h *App) CreateSchedule(ctx *ctxx.Context, p CreateScheduleParams) (next string, err error) {
-
-	userID := ctx.UserID
+	userID := ctx.User.ID
 	if p.Assignee != "" {
 		user, _, err := h.d.UserUC.Get(ctx, nil, db.Params{
 			Where: []db.Where{

@@ -9,6 +9,7 @@ import (
 	"github.com/arpinfidel/tuduit/app"
 	"github.com/arpinfidel/tuduit/pkg/ctxx"
 	"github.com/arpinfidel/tuduit/pkg/db"
+	"github.com/arpinfidel/tuduit/pkg/errs"
 	"github.com/arpinfidel/tuduit/pkg/log"
 	"github.com/arpinfidel/tuduit/pkg/rose"
 	_ "github.com/mattn/go-sqlite3"
@@ -53,7 +54,7 @@ func wrapHandler[T any, U any](f func(ctx *ctxx.Context, req T) (resp U, err err
 	}
 	return func(ctx *ctxx.Context, text string) (string, error) {
 		req := help[T]{}
-		r, err := rose.NewParser(prefix).ParseTextMsg(text, &req)
+		r, err := rose.NewParser(ctx, prefix).ParseTextMsg(text, &req)
 		if err != nil {
 			return "internal error", err
 		}
@@ -83,6 +84,8 @@ func wrapHandler[T any, U any](f func(ctx *ctxx.Context, req T) (resp U, err err
 			return "", err
 		}
 
+		rose.ChangeTimezone(&resp, ctx.User.TimeZone)
+
 		respStr, err := yaml.Marshal(resp)
 		if err != nil {
 			return "", err
@@ -107,16 +110,19 @@ func (s *WaBot) eventHandler(evt interface{}) {
 		})
 		if err != nil {
 			s.l.Errorf("failed to get user: %v", err)
+			if trace := errs.GetTrace(err); len(trace) > 0 {
+				s.l.Errorln(strings.Join(trace, "\n"))
+			}
 			return
 		}
-
 		if len(usrs) == 0 {
 			s.l.Errorf("user not registered: %s", sender)
 			return
 		}
 
 		usr := usrs[0]
-		ctx := ctxx.New(s.ctx, usr.ID)
+		usr.Parse()
+		ctx := ctxx.New(s.ctx, usr)
 		ctx = ctxx.WithWhatsappMessage(ctx, v)
 
 		switch v.Info.Type {

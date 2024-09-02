@@ -59,3 +59,16 @@ func (d Duration) Format(s fmt.State, v rune) {
 func (d Duration) String() string {
 	return fmt.Sprintf("%s", d)
 }
+
+func (d Duration) Elapsed() string {
+	s := ""
+	if d < 0 {
+		s += fmt.Sprintf("in %2s", -d)
+	} else if d > 0 {
+		s += fmt.Sprintf("%2s ago", d)
+	} else {
+		s += "now"
+	}
+
+	return s
+}

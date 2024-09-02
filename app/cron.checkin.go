@@ -83,7 +83,7 @@ func (a *App) SendCheckInMsgs() error {
 		}
 
 		false_ := false
-		res, err := a.GetTaskList(ctxx.New(ctx, c.UserID), TaskListParams{
+		res, err := a.GetTaskList(ctxx.New(ctx, u), TaskListParams{
 			Page:      1,
 			Size:      25,
 			Completed: &false_,
@@ -93,7 +93,7 @@ func (a *App) SendCheckInMsgs() error {
 			return err
 		}
 
-		resp := TaskListToString(res)
+		resp := TaskListToString(ctxx.New(ctx, u), res)
 
 		resp = "```\n" + resp + "\n```"
 
