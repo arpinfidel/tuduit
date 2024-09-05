@@ -3,6 +3,8 @@ package rose
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -10,6 +12,8 @@ import (
 
 	"github.com/arpinfidel/tuduit/entity"
 	"github.com/arpinfidel/tuduit/pkg/ctxx"
+	"github.com/go-chi/chi/v5"
+	jsoniter "github.com/json-iterator/go"
 	str2duration "github.com/xhit/go-str2duration/v2"
 )
 
@@ -220,7 +224,7 @@ func (p *Parser) castType(v string, t reflect.Type) (val any, err error) {
 
 func (p *Parser) parseArgs(args []string, flags map[string]string, target any) (rose Rose, err error) {
 	if reflect.TypeOf(target).Kind() != reflect.Pointer {
-		return rose, fmt.Errorf("target must be a pointer")
+		return Rose{}, fmt.Errorf("target must be a pointer")
 	}
 
 	rose = Rose{
@@ -274,7 +278,7 @@ func (p *Parser) parseArgs(args []string, flags map[string]string, target any) (
 
 		if field.Flatten {
 			if typ.Type.Kind() != reflect.Struct {
-				return rose, fmt.Errorf("argument %s is not a struct", typ.Name)
+				return Rose{}, fmt.Errorf("argument %s is not a struct", typ.Name)
 			}
 
 			subFields := []reflect.StructField{}
@@ -305,7 +309,10 @@ func (p *Parser) parseArgs(args []string, flags map[string]string, target any) (
 			set = true
 		}
 
+		names := []string{}
 		for name := range field.Names {
+			names = append(names, name)
+
 			val, ok := flags[name]
 			if !ok {
 				continue
@@ -315,7 +322,7 @@ func (p *Parser) parseArgs(args []string, flags map[string]string, target any) (
 			if err != nil {
 				rose.Valid = false
 				rose.Errors = append(rose.Errors, err)
-				return rose, err
+				return Rose{}, err
 			}
 
 			value.Set(reflect.ValueOf(v))
@@ -326,8 +333,7 @@ func (p *Parser) parseArgs(args []string, flags map[string]string, target any) (
 		if !set && field.Default != "" {
 			v, err := p.castType(field.Default, typ.Type)
 			if err != nil {
-
-				return rose, err
+				return Rose{}, err
 			}
 			value.Set(reflect.ValueOf(v))
 			set = true
@@ -335,7 +341,7 @@ func (p *Parser) parseArgs(args []string, flags map[string]string, target any) (
 
 		if !set && field.Required && values[i].IsZero() {
 			rose.Valid = false
-			rose.Errors = append(rose.Errors, fmt.Errorf("argument %s is required", typ.Name))
+			rose.Errors = append(rose.Errors, fmt.Errorf("argument %s is required", names[0]))
 
 			continue
 		}
@@ -363,6 +369,49 @@ func (p *Parser) parseJSON(jsonBytes []byte, target any) (rose Rose, err error) 
 	}
 
 	return p.parseArgs(nil, flags, target)
+}
+
+// ParseHTTP parses an HTTP request into a struct
+func (p *Parser) ParseHTTP(r *http.Request, target any) (rose Rose, err error) {
+	// Parse query parameters
+	queryParams := make(map[string]string)
+	for key, values := range r.URL.Query() {
+		if len(values) > 0 {
+			queryParams[key] = values[0]
+		}
+	}
+
+	// Parse body
+	if r.Body != nil {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			return rose, fmt.Errorf("failed to read request body: %w", err)
+		}
+		defer r.Body.Close()
+
+		if len(body) > 0 {
+			_, err := p.parseJSON(body, target)
+			if err != nil {
+				return rose, fmt.Errorf("failed to parse request body: %w", err)
+			}
+		}
+	}
+
+	// Merge query parameters and body parameters
+	flags := make(map[string]string)
+	for k, v := range queryParams {
+		flags[k] = v
+	}
+
+	// Parse path parameters
+	pathParams := make([]string, 0)
+	if routeContext := chi.RouteContext(r.Context()); routeContext != nil {
+		for i, param := range routeContext.URLParams.Values {
+			flags[routeContext.URLParams.Keys[i]] = param
+		}
+	}
+
+	return p.parseArgs(pathParams, flags, target)
 }
 
 // parseTextMsg parses a text message into a struct
@@ -545,8 +594,6 @@ func ChangeTimezone(v any, loc *time.Location) (res any) {
 }
 
 func changeTimezone(val reflect.Value, loc *time.Location) (res any) {
-	fmt.Printf(" >> debug >> val.Type(): %#v\n", val.Type().String())
-	fmt.Printf(" >> debug >> val.Interface(): %#v\n", val.Interface())
 
 	if val.Interface() == nil {
 		return nil
@@ -564,9 +611,7 @@ func changeTimezone(val reflect.Value, loc *time.Location) (res any) {
 	case reflect.Struct:
 		for i := 0; i < val.NumField(); i++ {
 			field := val.Field(i)
-			fmt.Printf(" >> debug >> val.Field(i).Interface(): %#v\n", field.Interface())
 			t := changeTimezone(field, loc)
-			fmt.Printf(" >> debug >> t: %#v\n", t)
 			if field.Kind() == reflect.Ptr && field.IsNil() {
 				continue
 			}
@@ -592,4 +637,9 @@ func changeTimezone(val reflect.Value, loc *time.Location) (res any) {
 		}
 		return val.Interface()
 	}
+}
+
+func JSONMarshal(v any) ([]byte, error) {
+	jsonc := jsoniter.Config{TagKey: "rose"}.Froze()
+	return jsonc.Marshal(v)
 }

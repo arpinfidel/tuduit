@@ -6,46 +6,48 @@ import (
 	"runtime"
 )
 
-var _ error = &Error{}
+var _ error = &Err{}
 
-type Error struct {
+type Err struct {
 	Base       error
 	Attributes []error
 	Trace      []string
+
+	UserMessage string
 }
 
-func (e *Error) Error() string {
+func (e *Err) Error() string {
 	return e.Base.Error()
 }
 
-func New(format string, a ...any) *Error {
-	return &Error{
+func New(format string, a ...any) *Err {
+	return &Err{
 		Base:       fmt.Errorf(format, a...),
 		Attributes: []error{ErrTypeBase},
 	}
 }
 
-func Wrap(err error) *Error {
+func Wrap(err error) *Err {
 	if err == nil {
 		return nil
 	}
 	if errors.Is(err, ErrTypeBase) {
-		return err.(*Error)
+		return err.(*Err)
 	}
-	return &Error{
+	return &Err{
 		Base:       err,
 		Attributes: []error{ErrTypeBase},
 	}
 }
 
-func TraceSkip(err error, skip int) *Error {
+func TraceSkip(err error, skip int) *Err {
 	if err == nil {
 		return nil
 	}
 	return Wrap(err).WithTraceSkip(1 + skip)
 }
 
-func Trace(err error) *Error {
+func Trace(err error) *Err {
 	if err == nil {
 		return nil
 	}
@@ -57,24 +59,29 @@ func GetTrace(err error) []string {
 		return nil
 	}
 
-	return err.(*Error).Trace
+	return err.(*Err).Trace
 }
 
-func (e *Error) WithTraceSkip(skip int) *Error {
+func (e *Err) WithTraceSkip(skip int) *Err {
 	e.Trace = createStackTrace(1 + skip)
 	return e
 }
 
-func (e *Error) WithTrace() *Error {
+func (e *Err) WithTrace() *Err {
 	return e.WithTraceSkip(1)
 }
 
-func (e *Error) WithAttributes(a ...error) *Error {
+func (e *Err) WithAttributes(a ...error) *Err {
 	e.Attributes = append(e.Attributes, a...)
 	return e
 }
 
-func (e *Error) Unwrap() []error {
+func (e *Err) WithUserMessagef(format string, a ...any) *Err {
+	e.UserMessage = fmt.Sprintf(format, a...)
+	return e
+}
+
+func (e *Err) Unwrap() []error {
 	return append([]error{e.Base}, e.Attributes...)
 }
 

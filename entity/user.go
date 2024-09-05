@@ -5,19 +5,19 @@ import "time"
 type User struct {
 	StdFields
 
-	Name           string         `json:"name"            db:"name"`
-	Username       string         `json:"username"        db:"username"`
-	WhatsappNumber string         `json:"whatsapp_number" db:"whatsapp_number"`
-	TimeZoneStr    string         `json:"timezone"        db:"timezone"`
-	TimeZone       *time.Location `json:"-"               db:"-"`
+	Name           string `json:"name"            db:"name"`
+	Username       string `json:"username"        db:"username"`
+	WhatsAppNumber string `json:"whatsapp_number" db:"whatsapp_number"`
+	TimezoneStr    string `json:"timezone"        db:"timezone"`
+	PasswordHash   []byte `json:"-"               db:"password_hash"`
+	PasswordSalt   []byte `json:"-"               db:"password_salt"`
 }
 
-func (u *User) Parse() error {
-	timeZone, err := time.LoadLocation(u.TimeZoneStr)
+func (u *User) Timezone() *time.Location {
+	timeZone, err := time.LoadLocation(u.TimezoneStr)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	u.TimeZone = timeZone
 
-	return nil
+	return timeZone
 }

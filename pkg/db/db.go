@@ -39,6 +39,10 @@ func New(driver, master, slave string) (*DB, error) {
 }
 
 type Master interface {
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	BeginTxx(ctx context.Context, opts *sql.TxOptions) (*sqlx.Tx, error)
+	Begin() (*sql.Tx, error)
+
 	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 	NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error)
 	NamedExec(query string, arg interface{}) (sql.Result, error)

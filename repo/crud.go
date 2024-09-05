@@ -245,11 +245,17 @@ func (c *StdCRUD[T]) Get(ctx context.Context, dbTx *sqlx.Tx, param db.Params) (d
 	countQ, countArgs := param.GetQuery(countQ)
 	q, args := param.BuildSort().BuildPagination().GetQuery(q)
 
-	err = querier.GetContext(ctx, &total, c.db.Rebind(countQ), countArgs...)
-	if err != nil {
-		return nil, 0, err
+	if param.WithCount {
+		// c.l.Debugf("count query:\n%s", countQ)
+		// c.l.Debugf("count args: %#v", countArgs)
+		err = querier.GetContext(ctx, &total, c.db.Rebind(countQ), countArgs...)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
+	// c.l.Debugf("query:\n%s", q)
+	// c.l.Debugf("args: %#v", args)
 	err = querier.SelectContext(ctx, &data, c.db.Rebind(q), args...)
 	if err != nil {
 		return data, 0, err

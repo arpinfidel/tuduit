@@ -11,6 +11,7 @@ type Params struct {
 	Where      []Where
 	Pagination *Pagination
 	Sort       []Sort
+	WithCount  bool
 
 	where string
 	page  string
@@ -20,10 +21,13 @@ type Params struct {
 }
 
 type Where struct {
-	Field  string
-	Op     Operator
-	Value  any
-	RawSQL string
+	Field        string
+	Op           Operator
+	Value        any
+	RawSQL       string
+	RawSQLArgs   []any
+	RawValue     string
+	RawValueArgs []any
 }
 
 type Operator int
@@ -46,8 +50,19 @@ const (
 	ArrContains
 )
 
+func WhereOr(w ...Where) Where {
+	return Where{Op: OrOp, Value: w}
+}
+
+func WhereAnd(w ...Where) Where {
+	return Where{Op: AndOp, Value: w}
+}
+
 func (w *Where) buildOperator() sq.Sqlizer {
 	v := w.Value
+	if w.RawValue != "" {
+		v = sq.Expr(w.RawValue, w.RawValueArgs...)
+	}
 	switch w.Op {
 	default:
 		return sq.Eq{w.Field: v}
@@ -88,7 +103,7 @@ func (w *Where) buildOperator() sq.Sqlizer {
 	case AndOp:
 		return and(v)
 	case RawOp:
-		return sq.Expr(w.RawSQL)
+		return sq.Expr(w.RawSQL, w.RawSQLArgs...)
 	case ArrContains:
 		return sq.Expr(fmt.Sprintf("%s @> ?", w.Field), pq.Array(v))
 	}
@@ -105,6 +120,8 @@ func in[T any](field string, arr []T) sq.Or {
 func or(v interface{}) sq.Or {
 	orFilters := sq.Or{}
 	switch filters := v.(type) {
+	default:
+		panic(fmt.Sprintf("unsupported type %T", v))
 	case []Where:
 		for _, f := range filters {
 			orFilters = append(orFilters, f.buildOperator())
@@ -117,6 +134,8 @@ func or(v interface{}) sq.Or {
 func and(v interface{}) sq.And {
 	orFilters := sq.And{}
 	switch filters := v.(type) {
+	default:
+		panic(fmt.Sprintf("unsupported type %T", v))
 	case []Where:
 		for _, f := range filters {
 			orFilters = append(orFilters, f.buildOperator())

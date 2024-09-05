@@ -1,11 +1,16 @@
 package rose
 
 import (
+	"context"
+	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/arpinfidel/tuduit/entity"
+	"github.com/arpinfidel/tuduit/pkg/ctxx"
+	"github.com/go-chi/chi/v5"
 )
 
 func Test_parseArgs(t *testing.T) {
@@ -294,5 +299,185 @@ func Test_ChangeTimezone(t *testing.T) {
 	}
 	if !tm.Equal(*v3[0].StartDate) {
 		t.Errorf("ChangeTimezone() = %v, want %v", tm, *v3[0].StartDate)
+	}
+}
+
+func TestParser_ParseHTTP(t *testing.T) {
+	type fields struct {
+		ctx           *ctxx.Context
+		textMsgPrefix string
+	}
+	type args struct {
+		r      *http.Request
+		target any
+	}
+	tests := []struct {
+		name       string
+		fields     fields
+		args       args
+		want       Rose
+		wantTarget any
+		wantErr    bool
+	}{
+		{
+			name: "valid - request body",
+			fields: fields{
+				ctx:           ctxx.Background(),
+				textMsgPrefix: "",
+			},
+			args: args{
+				r: func() *http.Request {
+					r, _ := http.NewRequest("POST", "/", strings.NewReader(`{"name": "test"}`))
+					return r
+				}(),
+				target: &struct {
+					Name string `rose:"name"`
+				}{},
+			},
+			want: Rose{
+				Valid: true,
+			},
+			wantTarget: &struct {
+				Name string `rose:"name"`
+			}{
+				Name: "test",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid - request query",
+			fields: fields{
+				ctx:           ctxx.Background(),
+				textMsgPrefix: "",
+			},
+			args: args{
+				r: func() *http.Request {
+					r, _ := http.NewRequest("GET", "/?name=test", nil)
+					return r
+				}(),
+				target: &struct {
+					Name string `rose:"name"`
+				}{},
+			},
+			want: Rose{
+				Valid: true,
+			},
+			wantTarget: &struct {
+				Name string `rose:"name"`
+			}{
+				Name: "test",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid - url params",
+			fields: fields{
+				ctx:           ctxx.Background(),
+				textMsgPrefix: "",
+			},
+			args: args{
+				r: func() *http.Request {
+					r, _ := http.NewRequest("GET", "/test?name=test", nil)
+					rctx := chi.NewRouteContext()
+					rctx.URLParams.Keys = []string{"name"}
+					rctx.URLParams.Values = []string{"test"}
+					ctx := context.WithValue(r.Context(), chi.RouteCtxKey, rctx)
+					r = r.WithContext(ctx)
+					return r
+				}(),
+				target: &struct {
+					Name string `rose:"name"`
+				}{},
+			},
+			want: Rose{
+				Valid: true,
+			},
+			wantTarget: &struct {
+				Name string `rose:"name"`
+			}{
+				Name: "test",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid - request body",
+			fields: fields{
+				ctx:           ctxx.Background(),
+				textMsgPrefix: "",
+			},
+			args: args{
+				r: func() *http.Request {
+					r, _ := http.NewRequest("POST", "/", strings.NewReader(`{"name": "abc"}`))
+					return r
+				}(),
+				target: &struct {
+					Name int `rose:"name"`
+				}{},
+			},
+			want: Rose{
+				Valid: false,
+			},
+			wantTarget: &struct {
+				Name int `rose:"name"`
+			}{},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &Parser{
+				ctx:           tt.fields.ctx,
+				textMsgPrefix: tt.fields.textMsgPrefix,
+			}
+			got, err := p.ParseHTTP(tt.args.r, tt.args.target)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.ParseHTTP() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.ParseHTTP() = %v, want %v", got, tt.want)
+			}
+
+			if !reflect.DeepEqual(tt.wantTarget, tt.args.target) {
+				t.Errorf("Parser.ParseHTTP().target = %#v, want %#v", tt.args.target, tt.wantTarget)
+			}
+		})
+	}
+}
+
+func TestJSONMarshal(t *testing.T) {
+	type args struct {
+		v any
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "valid",
+			args: args{
+				v: struct {
+					Name string `rose:"name"`
+				}{
+					Name: "test",
+				},
+			},
+			want:    []byte(`{"name":"test"}`),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := JSONMarshal(tt.args.v)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("JSONMarshal() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("JSONMarshal() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

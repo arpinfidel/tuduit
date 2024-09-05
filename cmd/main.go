@@ -9,15 +9,19 @@ import (
 	"time"
 
 	"github.com/arpinfidel/tuduit/app"
+	"github.com/arpinfidel/tuduit/gateway/http"
 	"github.com/arpinfidel/tuduit/gateway/wabot"
 	"github.com/arpinfidel/tuduit/pkg/cron"
 	"github.com/arpinfidel/tuduit/pkg/db"
+	"github.com/arpinfidel/tuduit/pkg/jwt"
 	"github.com/arpinfidel/tuduit/pkg/log"
 	checkinrepo "github.com/arpinfidel/tuduit/repo/checkin"
+	otprepo "github.com/arpinfidel/tuduit/repo/otp"
 	schedulerepo "github.com/arpinfidel/tuduit/repo/schedule"
 	taskrepo "github.com/arpinfidel/tuduit/repo/task"
 	userrepo "github.com/arpinfidel/tuduit/repo/user"
 	checkinuc "github.com/arpinfidel/tuduit/usecase/checkin"
+	otpuc "github.com/arpinfidel/tuduit/usecase/otp"
 	scheduleuc "github.com/arpinfidel/tuduit/usecase/schedule"
 	taskuc "github.com/arpinfidel/tuduit/usecase/task"
 	useruc "github.com/arpinfidel/tuduit/usecase/user"
@@ -29,87 +33,90 @@ import (
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	waLog "go.mau.fi/whatsmeow/util/log"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 )
 
-type Start struct {
+type Main struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	cfg Config
 
 	l *log.Logger
 }
 
+type Config struct {
+	Postgres struct {
+		Master struct {
+			User     string `yaml:"user"`
+			Password string `yaml:"password"`
+			Host     string `yaml:"host"`
+			Port     string `yaml:"port"`
+			Database string `yaml:"database"`
+			SSLMode  string `yaml:"ssl_mode"`
+		}
+		Slave struct {
+			User     string `yaml:"user"`
+			Password string `yaml:"password"`
+			Host     string `yaml:"host"`
+			Port     string `yaml:"port"`
+			Database string `yaml:"database"`
+			SSLMode  string `yaml:"ssl_mode"`
+		}
+	} `yaml:"postgres"`
+	JWT struct {
+		SigningMethod string `yaml:"signing_method"`
+		PrivateKey    string `yaml:"private_key"`
+		PublicKey     string `yaml:"public_key"`
+	} `yaml:"jwt"`
+}
+
 func main() {
-	main := &Start{}
+	main := &Main{}
 
 	main.ctx, main.cancel = context.WithCancel(context.Background())
 	time.Local = time.UTC
 
+	// read from ./files/etc/secret.yaml
+	b, err := os.ReadFile("./files/etc/secret.yaml")
+	if err != nil {
+		main.l.Fatalln(err)
+	}
+	err = yaml.Unmarshal(b, &main.cfg)
+	if err != nil {
+		main.l.Fatalln(err)
+	}
+
+	// read from ./files/etc/config.yaml
+
 	zapCfg := zap.NewDevelopmentConfig()
-	// zapCfg.Level.SetLevel(zap.DebugLevel)
-	zapCfg.Level.SetLevel(zap.WarnLevel)
+	// zapCfg.Level.SetLevel(zap.WarnLevel)
 	l, err := zapCfg.Build()
 	if err != nil {
 		l.Sugar().Fatalf("zap.NewDevelopment: %v", err)
 	}
 	main.l = log.New(l)
 
-	// app := &cli.App{
-	// 	Flags: []cli.Flag{
-	// 		&cli.StringFlag{
-	// 			Name:    "input",
-	// 			Aliases: []string{"i"},
-	// 			Usage:   "input",
-	// 		},
-	// 	},
-	// 	Action: func(ctx *cli.Context) error {
-	// 		main.l.Infof(ctx.String("input"))
-	// 		return nil
-	// 	},
-	// }
-
-	// if err := app.Run(os.Args); err != nil {
-	// 	main.l.Fatalln(err)
-	// }
-	// ctx := context.Background()
-
+	main.l.Infof("initializing database")
 	db := main.initPostgres()
+	main.l.Infof("initialized database")
 
-	// // init sqlite
-	// sqlite, err := sql.Open("sqlite3", "/var/lib/sqlite3/tuduit.db")
-	// if err != nil {
-	// 	main.l.Fatalln(err)
-	// }
-	// defer sqlite.Close()
+	main.l.Infof("initializing jwt")
+	jwt, err := jwt.New(main.cfg.JWT.SigningMethod, []byte(main.cfg.JWT.PrivateKey), []byte(main.cfg.JWT.PublicKey))
+	if err != nil {
+		main.l.Fatalln(err)
+	}
+	main.l.Infof("initialized jwt")
 
-	// if _, err := os.Stat("/var/lib/sqlite3/tuduit.db"); os.IsNotExist(err) {
-	// 	// Create the file if it does not exist
-	// 	_, err = os.Create("/var/lib/sqlite3/tuduit.db")
-	// 	if err != nil {
-	// 		main.l.Fatalf("failed to create file: %v", err)
-	// 	}
-	// }
-
-	// db, err := db.New("sqlite3", "file:/var/lib/sqlite3/tuduit.db?_foreign_keys=on", "file:/var/lib/sqlite3/tuduit.db?_foreign_keys=on")
-	// if err != nil {
-	// 	main.l.Fatalln(err)
-	// }
-
+	main.l.Infof("initializing wa bot")
 	waBot, err := main.initWaBot(db)
 	if err != nil {
 		main.l.Fatalln(err)
 	}
 	defer waBot.Disconnect()
+	main.l.Infof("initialized wa bot")
 
-	// x := 0
-	// err = db.GetMaster().GetContext(main.ctx, &x, "SELECT 1+1")
-	// if err != nil {
-	// 	main.l.Fatalln(err)
-	// }
-	// err = db.GetSlave().GetContext(main.ctx, &x, "SELECT COUNT(1) FROM task")
-	// if err != nil {
-	// 	main.l.Fatalln(err)
-	// }
-
+	main.l.Infof("initializing repos")
 	taskRepo := taskrepo.New(taskrepo.Dependencies{
 		DB:     db,
 		Logger: main.l,
@@ -126,7 +133,13 @@ func main() {
 		DB:     db,
 		Logger: main.l,
 	})
+	otpRepo := otprepo.New(otprepo.Dependencies{
+		DB:     db,
+		Logger: main.l,
+	})
+	main.l.Infof("initialized repos")
 
+	main.l.Infof("initializing usecases")
 	taskUC := taskuc.New(taskuc.Dependencies{
 		Repo: taskRepo,
 	})
@@ -139,30 +152,51 @@ func main() {
 	checkinUC := checkinuc.New(checkinuc.Dependencies{
 		Repo: checkinRepo,
 	})
+	otpUC := otpuc.New(otpuc.Dependencies{
+		Repo: otpRepo,
+	})
+	main.l.Infof("initialized usecases")
 
+	main.l.Infof("initializing cron")
 	cron := cron.New(main.ctx, main.l)
+	main.l.Infof("initialized cron")
 
+	main.l.Infof("creating app")
 	a := app.New(main.l, app.Dependencies{
 		TaskUC:     taskUC,
 		ScheduleUC: scheduleUC,
 		UserUC:     userUC,
 		CheckinUC:  checkinUC,
+		OTPUC:      otpUC,
 
 		Cron: cron,
+		JWT:  jwt,
 
 		WaClient: waBot,
+
+		DB: db,
 	}, app.Config{})
+	main.l.Infof("created app")
 
 	// minioClient := initMinio()
 
-	server := wabot.New(main.ctx, main.l, wabot.Dependencies{
+	main.l.Infof("initializing wabot")
+	wabot := wabot.New(main.ctx, main.l, wabot.Dependencies{
 		WaClient: waBot,
 
 		App: a,
 	})
+	go wabot.Start()
+	main.l.Infof("initialized wabot")
 
-	go server.Start()
-	main.l.Infoln("server started")
+	main.l.Infof("initializing http server")
+	httpServer := http.New(main.l, http.Dependencies{
+		App: a,
+	})
+	go httpServer.Start()
+	main.l.Infof("initialized http server")
+
+	main.l.Infoln("app started")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -171,21 +205,19 @@ func main() {
 	main.cancel()
 }
 
-func (main *Start) initPostgres() *db.DB {
-	// db, err := sqlx.Open("postgres", "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable")
-	// if err != nil {
-	// 	main.l.Fatalln(err)
-	// }
-	// return db
-
-	db, err := db.New("postgres", "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable", "postgres://postgres:@tuduit_pg:5432/tuduit?sslmode=disable")
+func (main *Main) initPostgres() *db.DB {
+	mcfg := main.cfg.Postgres.Master
+	master := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", mcfg.User, mcfg.Password, mcfg.Host, mcfg.Port, mcfg.Database, mcfg.SSLMode)
+	scfg := main.cfg.Postgres.Slave
+	slave := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", scfg.User, scfg.Password, scfg.Host, scfg.Port, scfg.Database, scfg.SSLMode)
+	db, err := db.New("postgres", master, slave)
 	if err != nil {
 		main.l.Fatalln(err)
 	}
 	return db
 }
 
-func (main *Start) initMinio() *minio.Client {
+func (main *Main) initMinio() *minio.Client {
 	endpoint := "tuduit-minio:9000"
 	accessKeyID := "MDqjpAZx5SPxynNvANLe"
 	secretAccessKey := "XqbapeuYIHBXlVaN6I9CyAZ4ZViqzTlLY3HFwHDy"
@@ -218,7 +250,7 @@ func (main *Start) initMinio() *minio.Client {
 	return minioClient
 }
 
-func (main *Start) initWaBot(db *db.DB) (client *whatsmeow.Client, err error) {
+func (main *Main) initWaBot(db *db.DB) (client *whatsmeow.Client, err error) {
 	// https://godocs.io/go.mau.fi/whatsmeow#example-package
 	var dbLog waLog.Logger = nil
 	// dbLog = waLog.Stdout("Database", "DEBUG", true)

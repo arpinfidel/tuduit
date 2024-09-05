@@ -84,7 +84,7 @@ func wrapHandler[T any, U any](f func(ctx *ctxx.Context, req T) (resp U, err err
 			return "", err
 		}
 
-		rose.ChangeTimezone(&resp, ctx.User.TimeZone)
+		rose.ChangeTimezone(&resp, ctx.User.Timezone())
 
 		respStr, err := yaml.Marshal(resp)
 		if err != nil {
@@ -116,14 +116,13 @@ func (s *WaBot) eventHandler(evt interface{}) {
 			return
 		}
 		if len(usrs) == 0 {
-			s.l.Errorf("user not registered: %s", sender)
+			// s.l.Errorf("user not registered: %s", sender)
 			return
 		}
 
 		usr := usrs[0]
-		usr.Parse()
 		ctx := ctxx.New(s.ctx, usr)
-		ctx = ctxx.WithWhatsappMessage(ctx, v)
+		ctx = ctxx.WithWhatsAppMessage(ctx, v)
 
 		switch v.Info.Type {
 		default:

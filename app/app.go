@@ -6,8 +6,10 @@ import (
 	"github.com/arpinfidel/tuduit/entity"
 	"github.com/arpinfidel/tuduit/pkg/cron"
 	"github.com/arpinfidel/tuduit/pkg/db"
+	"github.com/arpinfidel/tuduit/pkg/jwt"
 	"github.com/arpinfidel/tuduit/pkg/log"
 	checkinuc "github.com/arpinfidel/tuduit/usecase/checkin"
+	otpuc "github.com/arpinfidel/tuduit/usecase/otp"
 	scheduleuc "github.com/arpinfidel/tuduit/usecase/schedule"
 	taskuc "github.com/arpinfidel/tuduit/usecase/task"
 	useruc "github.com/arpinfidel/tuduit/usecase/user"
@@ -27,9 +29,14 @@ type Dependencies struct {
 	ScheduleUC *scheduleuc.UseCase
 	UserUC     *useruc.UseCase
 	CheckinUC  *checkinuc.UseCase
+	OTPUC      *otpuc.UseCase
 
-	Cron     *cron.Cron
+	Cron *cron.Cron
+	JWT  *jwt.JWT
+
 	WaClient *whatsmeow.Client
+
+	DB *db.DB
 }
 
 type Config struct{}
@@ -54,15 +61,12 @@ func New(logger *log.Logger, deps Dependencies, cfg Config) *App {
 		a.d.Cron.RegisterJob(f.Schedule, f.Name, f.Func())
 	}
 
-	err := a.SendCheckInMsgs()
+	a.l.Infof("Creating partitions")
+	err := a.CreatePartitions()
 	if err != nil {
-		a.l.Errorf("SendCheckInMsgs: %v", err)
+		a.l.Errorf("CreatePartitions: %v", err)
 	}
-
-	err = a.CreateScheduledTasks()
-	if err != nil {
-		a.l.Errorf("CreateScheduledTasks: %v", err)
-	}
+	a.l.Infof("Partitions created")
 
 	err = a.d.Cron.Start()
 	if err != nil {
