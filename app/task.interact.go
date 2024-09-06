@@ -109,7 +109,8 @@ func (a *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 	}
 
 	tasks, count, err := a.d.TaskUC.Get(ctx, nil, db.Params{
-		Where: where,
+		WithCount: true,
+		Where:     where,
 		Pagination: &db.Pagination{
 			Limit:  p.Size,
 			Offset: (p.Page - 1) * p.Size,

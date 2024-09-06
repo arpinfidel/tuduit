@@ -96,11 +96,14 @@ func (a *App) SendCheckInMsgs() error {
 
 		resp = "```\n" + resp + "\n```"
 
+		conv := messenger.Conversation{
+			Type:    messenger.ConversationType(c.ConversationType),
+			GroupID: c.ConversationID,
+			UserID:  c.ConversationID,
+		}
+
 		err = a.d.WaClient.SendMessage(ctx, messenger.Message{
-			Conversation: messenger.Conversation{
-				Type:   messenger.ConversationTypeUser,
-				UserID: u.WhatsAppNumber,
-			},
+			Conversation: conv,
 			Blocks: []messenger.Block{
 				&messenger.TextBlock{
 					Text: resp,

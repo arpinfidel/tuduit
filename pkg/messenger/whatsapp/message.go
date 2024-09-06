@@ -34,7 +34,7 @@ func buildMessageFromBlocks(blocks []messenger.Block) (*waE2E.Message, error) {
 	for _, block := range blocks {
 		switch block.Type() {
 		default:
-			return nil, fmt.Errorf("unknown block type: %s", block.Type)
+			return nil, fmt.Errorf("unknown block type: %s", block.Type())
 		case messenger.BlockTypeText:
 			t, err := buildTextBlock(block.(*messenger.TextBlock))
 			if err != nil {
