@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/arpinfidel/tuduit/entity"
@@ -142,6 +143,36 @@ func (a *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 
 	rose.ChangeTimezone(&tasks, ctx.User.Timezone())
 
+	sort.Slice(tasks, func(i, j int) bool {
+		ii := tasks[i]
+		jj := tasks[j]
+
+		if (ii.StartDate != nil || ii.EndDate != nil) && (jj.StartDate == nil && jj.EndDate == nil) {
+			return (ii.StartDate != nil && time.Since(*ii.StartDate) > 0) || ii.EndDate != nil
+		}
+		if (jj.StartDate != nil || jj.EndDate != nil) && (ii.StartDate == nil && ii.EndDate == nil) {
+			return !((jj.StartDate != nil && time.Since(*jj.StartDate) > 0) || jj.EndDate != nil)
+		}
+
+		if ii.EndDate != nil && jj.EndDate == nil {
+			if !ii.EndDate.Equal(*jj.EndDate) {
+				return ii.EndDate.Before(*jj.EndDate)
+			}
+		}
+
+		if ii.StartDate != nil && jj.StartDate == nil {
+			if !ii.StartDate.Equal(*jj.StartDate) {
+				return ii.StartDate.Before(*jj.StartDate)
+			}
+		}
+
+		if tasks[i].Priority != tasks[j].Priority {
+			return tasks[i].Priority < tasks[j].Priority
+		}
+
+		return tasks[i].Name < tasks[j].Name
+	})
+
 	for _, task := range tasks {
 		res.Tasks = append(res.Tasks, task.Overview())
 	}
@@ -155,7 +186,7 @@ func (a *App) GetTaskList(ctx *ctxx.Context, p TaskListParams) (res TaskListResu
 func TaskListToString(ctx *ctxx.Context, res TaskListResults) string {
 	resp := ""
 	for i, t := range res.Tasks {
-		if i > 0 && t.Priority > res.Tasks[i-1].Priority {
+		if i > 0 && (t.EndDate == "" || t.StartDate == "") != (res.Tasks[i-1].EndDate == "" || res.Tasks[i-1].StartDate == "") {
 			resp += "\n"
 		}
 
