@@ -5,7 +5,7 @@ import (
 
 	"github.com/arpinfidel/tuduit/entity"
 	"github.com/arpinfidel/tuduit/pkg/crypto"
-	"go.mau.fi/whatsmeow/types/events"
+	"github.com/arpinfidel/tuduit/pkg/messenger"
 )
 
 type Context struct {
@@ -13,7 +13,7 @@ type Context struct {
 	RequestID string
 	User      entity.User
 
-	WAEvent *events.Message
+	Message *messenger.Message
 }
 
 type Key string
@@ -42,8 +42,8 @@ func GetContext(ct context.Context) *Context {
 	return ctx.(*Context)
 }
 
-func WithWhatsAppMessage(ct context.Context, msg *events.Message) *Context {
+func WithMessage(ct context.Context, msg *messenger.Message) *Context {
 	c := GetContext(ct)
-	c.WAEvent = msg
+	c.Message = msg
 	return c
 }

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/arpinfidel/tuduit/pkg/ctxx"
-	"go.mau.fi/whatsmeow/proto/waE2E"
+	"github.com/arpinfidel/tuduit/pkg/messenger"
 )
 
 type ReminderParams struct {
@@ -31,8 +31,13 @@ func (a *App) SetReminder(ctx *ctxx.Context, p ReminderParams) (res string, err 
 		if p.Name != "" {
 			msg += fmt.Sprintf(": %s", p.Name)
 		}
-		_, err = a.d.WaClient.SendMessage(ctx, ctx.WAEvent.Info.Chat, &waE2E.Message{
-			Conversation: &msg,
+		err = a.d.WaClient.SendMessage(ctx, messenger.Message{
+			Conversation: ctx.Message.Conversation,
+			Blocks: []messenger.Block{
+				&messenger.TextBlock{
+					Text: msg,
+				},
+			},
 		})
 		if err != nil {
 			a.l.Logger.Sugar().Errorf("error sending message %v", err)

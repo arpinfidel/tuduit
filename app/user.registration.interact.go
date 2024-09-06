@@ -9,8 +9,7 @@ import (
 	"github.com/arpinfidel/tuduit/pkg/ctxx"
 	"github.com/arpinfidel/tuduit/pkg/db"
 	"github.com/arpinfidel/tuduit/pkg/errs"
-	"go.mau.fi/whatsmeow/proto/waE2E"
-	"go.mau.fi/whatsmeow/types"
+	"github.com/arpinfidel/tuduit/pkg/messenger"
 )
 
 type OTPSendParams struct {
@@ -97,8 +96,16 @@ func (a *App) OTPSend(ctx *ctxx.Context, p OTPSendParams) (res OTPSendResults, e
 		a.l.Errorf("Failed to connect to WhatsApp: %v", err)
 		return res, err
 	}
-	_, err = a.d.WaClient.SendMessage(ctx, types.NewJID(p.WhatsAppNumber, types.DefaultUserServer), &waE2E.Message{
-		Conversation: &msg,
+	err = a.d.WaClient.SendMessage(ctx, messenger.Message{
+		Conversation: messenger.Conversation{
+			Type:   messenger.ConversationTypeUser,
+			UserID: p.WhatsAppNumber,
+		},
+		Blocks: []messenger.Block{
+			&messenger.TextBlock{
+				Text: msg,
+			},
+		},
 	})
 	if err != nil {
 		return res, err

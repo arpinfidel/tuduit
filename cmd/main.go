@@ -15,6 +15,7 @@ import (
 	"github.com/arpinfidel/tuduit/pkg/db"
 	"github.com/arpinfidel/tuduit/pkg/jwt"
 	"github.com/arpinfidel/tuduit/pkg/log"
+	"github.com/arpinfidel/tuduit/pkg/messenger/whatsapp"
 	checkinrepo "github.com/arpinfidel/tuduit/repo/checkin"
 	otprepo "github.com/arpinfidel/tuduit/repo/otp"
 	schedulerepo "github.com/arpinfidel/tuduit/repo/schedule"
@@ -114,6 +115,10 @@ func main() {
 		main.l.Fatalln(err)
 	}
 	defer waBot.Disconnect()
+	waClientWrapper := whatsapp.New(whatsapp.Dependencies{
+		WaClient: waBot,
+	})
+
 	main.l.Infof("initialized wa bot")
 
 	main.l.Infof("initializing repos")
@@ -172,7 +177,7 @@ func main() {
 		Cron: cron,
 		JWT:  jwt,
 
-		WaClient: waBot,
+		WaClient: waClientWrapper,
 
 		DB: db,
 	}, app.Config{})
@@ -182,7 +187,7 @@ func main() {
 
 	main.l.Infof("initializing wabot")
 	wabot := wabot.New(main.ctx, main.l, wabot.Dependencies{
-		WaClient: waBot,
+		Messenger: waClientWrapper,
 
 		App: a,
 	})

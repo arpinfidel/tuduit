@@ -8,13 +8,13 @@ import (
 	"github.com/arpinfidel/tuduit/pkg/db"
 	"github.com/arpinfidel/tuduit/pkg/jwt"
 	"github.com/arpinfidel/tuduit/pkg/log"
+	"github.com/arpinfidel/tuduit/pkg/messenger"
 	checkinuc "github.com/arpinfidel/tuduit/usecase/checkin"
 	otpuc "github.com/arpinfidel/tuduit/usecase/otp"
 	scheduleuc "github.com/arpinfidel/tuduit/usecase/schedule"
 	taskuc "github.com/arpinfidel/tuduit/usecase/task"
 	useruc "github.com/arpinfidel/tuduit/usecase/user"
 	"github.com/jmoiron/sqlx"
-	"go.mau.fi/whatsmeow"
 )
 
 type App struct {
@@ -34,7 +34,7 @@ type Dependencies struct {
 	Cron *cron.Cron
 	JWT  *jwt.JWT
 
-	WaClient *whatsmeow.Client
+	WaClient messenger.Messenger
 
 	DB *db.DB
 }

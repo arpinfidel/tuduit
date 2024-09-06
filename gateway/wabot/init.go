@@ -11,12 +11,9 @@ import (
 	"github.com/arpinfidel/tuduit/pkg/db"
 	"github.com/arpinfidel/tuduit/pkg/errs"
 	"github.com/arpinfidel/tuduit/pkg/log"
+	"github.com/arpinfidel/tuduit/pkg/messenger"
 	"github.com/arpinfidel/tuduit/pkg/rose"
 	_ "github.com/mattn/go-sqlite3"
-	"go.mau.fi/whatsmeow"
-	"go.mau.fi/whatsmeow/proto/waE2E"
-	"go.mau.fi/whatsmeow/types/events"
-	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,7 +29,7 @@ type WaBot struct {
 }
 
 type Dependencies struct {
-	WaClient *whatsmeow.Client
+	Messenger messenger.Messenger
 
 	App *app.App
 }
@@ -95,67 +92,58 @@ func wrapHandler[T any, U any](f func(ctx *ctxx.Context, req T) (resp U, err err
 	}
 }
 
-func (s *WaBot) eventHandler(evt interface{}) {
-	switch v := evt.(type) {
-	case *events.Message:
-		sender := v.Info.Sender.User
-
-		usrs, _, err := s.d.App.GetUser(s.ctx, nil, db.Params{
-			Where: []db.Where{
-				{
-					Field: "whatsapp_number",
-					Value: sender,
-				},
+func (s *WaBot) eventHandler(ctx context.Context, msg *messenger.Message) error {
+	usrs, _, err := s.d.App.GetUser(s.ctx, nil, db.Params{
+		Where: []db.Where{
+			{
+				Field: "whatsapp_number",
+				Value: msg.SenderID,
 			},
-		})
-		if err != nil {
-			s.l.Errorf("failed to get user: %v", err)
-			if trace := errs.GetTrace(err); len(trace) > 0 {
-				s.l.Errorln(strings.Join(trace, "\n"))
-			}
-			return
+		},
+	})
+	if err != nil {
+		s.l.Errorf("failed to get user: %v", err)
+		if trace := errs.GetTrace(err); len(trace) > 0 {
+			s.l.Errorln(strings.Join(trace, "\n"))
 		}
-		if len(usrs) == 0 {
-			// s.l.Errorf("user not registered: %s", sender)
-			return
-		}
-
-		usr := usrs[0]
-		ctx := ctxx.New(s.ctx, usr)
-		ctx = ctxx.WithWhatsAppMessage(ctx, v)
-
-		switch v.Info.Type {
-		default:
-			s.l.Errorf("unsupported message text")
-			return
-		case "text":
-			err = s.handleText(ctx, v)
-			if err != nil {
-				s.l.Errorf("failed to handle text message: %v", err)
-				return
-			}
-		case "media":
-			switch v.Info.MediaType {
-			case "image":
-				// TODO: implement image handling
-			}
-		}
+		return err
 	}
+	if len(usrs) == 0 {
+		s.l.Debugf("user not registered: %s", msg.SenderID)
+		return nil
+	}
+
+	usr := usrs[0]
+	tctx := ctxx.New(ctx, usr)
+	tctx = ctxx.WithMessage(tctx, msg)
+
+	err = s.handleText(tctx, msg)
+	if err != nil {
+		s.l.Errorf("failed to handle text message: %v", err)
+		return err
+	}
+
+	return nil
 }
 
-func (s *WaBot) handleText(ctx *ctxx.Context, v *events.Message) (err error) {
-	text := ""
+func (s *WaBot) handleText(ctx *ctxx.Context, v *messenger.Message) (err error) {
+	var textBlock *messenger.TextBlock
 
-	if v.Message != nil && v.Message.ExtendedTextMessage != nil && v.Message.ExtendedTextMessage.Text != nil {
-		text = *v.Message.ExtendedTextMessage.Text
+	for _, b := range v.Blocks {
+		if tb, ok := b.(*messenger.TextBlock); ok {
+			textBlock = tb
+			break
+		}
 	}
 
-	if v.Message != nil && v.Message.Conversation != nil {
-		text = *v.Message.Conversation
+	if textBlock == nil {
+		return nil
 	}
+
+	text := strings.TrimSpace(textBlock.Text)
 
 	if text == "" {
-		s.l.Errorf("missing message text: %s", v.Info.Type)
+		s.l.Errorf("missing message text: %#v", v)
 		return errors.New("missing message text")
 	}
 
@@ -179,17 +167,29 @@ func (s *WaBot) handleText(ctx *ctxx.Context, v *events.Message) (err error) {
 
 	resp, err := s.routeText(ctx, command, value)
 	if err != nil {
-
 		s.l.Errorf("error in %v command: %v", command, err.Error())
-		s.d.WaClient.SendMessage(s.ctx, v.Info.Chat, &waE2E.Message{
-			Conversation: proto.String(fmt.Sprintf("error in %v command: %v", command, err.Error())),
-		})
+		msg := messenger.Message{
+			Conversation: v.Conversation,
+			Blocks: []messenger.Block{
+				&messenger.TextBlock{
+					Text: fmt.Sprintf("error in %v command: %v", command, err.Error()),
+				},
+			},
+		}
+		s.d.Messenger.SendMessage(s.ctx, msg)
 		return nil
 	}
 
-	s.d.WaClient.SendMessage(s.ctx, v.Info.Chat, &waE2E.Message{
-		Conversation: proto.String(resp),
-	})
+	msg := messenger.Message{
+		Conversation: v.Conversation,
+		Blocks: []messenger.Block{
+			&messenger.TextBlock{
+				Text: resp,
+			},
+		},
+	}
+
+	s.d.Messenger.SendMessage(s.ctx, msg)
 
 	return nil
 }
@@ -267,7 +267,7 @@ func (s *WaBot) routeText(ctx *ctxx.Context, command string, value string) (resp
 }
 
 func (s *WaBot) Start() (err error) {
-	s.d.WaClient.AddEventHandler(s.eventHandler)
+	s.d.Messenger.AddHandler(context.Background(), s.eventHandler)
 
 	return nil
 }

@@ -8,8 +8,7 @@ import (
 	"github.com/arpinfidel/tuduit/entity"
 	"github.com/arpinfidel/tuduit/pkg/ctxx"
 	"github.com/arpinfidel/tuduit/pkg/db"
-	"go.mau.fi/whatsmeow/proto/waE2E"
-	"go.mau.fi/whatsmeow/types"
+	"github.com/arpinfidel/tuduit/pkg/messenger"
 )
 
 var _ = registerTask("SendCheckInMsgs", "* * * * *", func() func() error { return a.SendCheckInMsgs })
@@ -97,8 +96,16 @@ func (a *App) SendCheckInMsgs() error {
 
 		resp = "```\n" + resp + "\n```"
 
-		_, err = a.d.WaClient.SendMessage(ctx, types.NewJID(u.WhatsAppNumber, types.DefaultUserServer), &waE2E.Message{
-			Conversation: &resp,
+		err = a.d.WaClient.SendMessage(ctx, messenger.Message{
+			Conversation: messenger.Conversation{
+				Type:   messenger.ConversationTypeUser,
+				UserID: u.WhatsAppNumber,
+			},
+			Blocks: []messenger.Block{
+				&messenger.TextBlock{
+					Text: resp,
+				},
+			},
 		})
 		if err != nil {
 			return err
